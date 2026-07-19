@@ -1,0 +1,74 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, e.g. 1.2.0. Leave empty to use extension/manifest.json's current version."
+        required: false
+        type: string
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: version
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          elif [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          else
+            VERSION=$(node -p "require('./extension/manifest.json').version")
+          fi
+          echo "Resolved version: $VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Sync manifest.json version
+        run: |
+          node -e "
+            const fs = require('fs');
+            const path = 'extension/manifest.json';
+            const manifest = JSON.parse(fs.readFileSync(path, 'utf8'));
+            manifest.version = '${{ steps.version.outputs.version }}';
+            fs.writeFileSync(path, JSON.stringify(manifest, null, 4) + '\n');
+          "
+
+      - name: Package extension
+        run: |
+          mkdir -p dist
+          cd extension
+          zip -r "../dist/7tv-anywhere-${{ steps.version.outputs.version }}-chrome.zip" . -x "*.DS_Store"
+          zip -r "../dist/7tv-anywhere-${{ steps.version.outputs.version }}-firefox.zip" . -x "*.DS_Store"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: extension-builds
+          path: dist/*.zip
+
+  github-release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: extension-builds
+          path: dist
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.build.outputs.version }}
+          name: v${{ needs.build.outputs.version }}
+          files: dist/*.zip
+          generate_release_notes: true

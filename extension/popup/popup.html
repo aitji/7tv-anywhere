@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>7TV Anywhere</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+
+<body>
+    <header class="app-header">
+        <div class="brand">
+            <img src="../icons/icon.svg" alt="" aria-hidden="true" width="22" height="22" class="brand-icon">
+            <span class="brand-title">7TV Anywhere</span>
+        </div>
+        <button id="toggle-enabled" class="switch" role="switch" aria-checked="true" title="Enable extension">
+            <span class="switch-knob"></span>
+        </button>
+    </header>
+
+    <div class="site-chip">
+        <svg class="icon" viewBox="0 0 16 16" fill="none">
+            <circle cx="8" cy="8" r="6.25" stroke="currentColor" stroke-width="1.3" />
+            <path
+                d="M2 8h12M8 1.75c1.6 1.7 2.5 3.9 2.5 6.25S9.6 12.55 8 14.25C6.4 12.55 5.5 10.35 5.5 8S6.4 3.45 8 1.75Z"
+                stroke="currentColor" stroke-width="1.1" />
+        </svg>
+        <span id="site-label" class="site-label">this site</span>
+        <button id="toggle-site" class="switch switch-sm" role="switch" aria-checked="true" title="Enable on this site">
+            <span class="switch-knob"></span>
+        </button>
+    </div>
+
+    <div id="unsupported-banner" class="update-banner unsupported-banner hidden">
+        <svg class="icon" viewBox="0 0 16 16" fill="none">
+            <path d="M8 1.5 14.5 13h-13L8 1.5Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round" />
+            <path d="M8 6.25v3.25M8 11.75h.01" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" />
+        </svg>
+        <span class="banner-text">
+            <span>This page is disabled by default <b>by the maintainer</b>,
+                but you can still enable it. Some features may not work as expected.</span>
+            <span id="unsupported-banner-note" class="banner-note hidden"></span>
+        </span>
+    </div>
+
+    <div id="site-note-banner" class="update-banner site-note-banner hidden">
+        <svg class="icon" viewBox="0 0 16 16" fill="none">
+            <circle cx="8" cy="8" r="6.25" stroke="currentColor" stroke-width="1.2" />
+            <path d="M8 7.25v4M8 5.1h.01" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" />
+        </svg>
+        <span class="banner-text">
+            <span class="note-text">This page has a note from <b>the maintainer</b>.
+                It should work as intended, but you can still disable it if needed.</span>
+            <span>Maintainer note: <span id="site-note-text"></span></span>
+        </span>
+    </div>
+
+    <div id="update-banner" class="update-banner" hidden>
+        <svg class="icon" viewBox="0 0 16 16" fill="none">
+            <path d="M8 1.5 14.5 13h-13L8 1.5Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round" />
+            <path d="M8 6.25v3.25M8 11.75h.01" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" />
+        </svg>
+        <span id="update-banner-text"></span>
+        <a id="update-banner-link" href="#" target="_blank" rel="noopener">View</a>
+    </div>
+
+    <nav class="tab-bar" role="tablist">
+        <button class="tab-btn is-active" data-tab="emotes" role="tab" aria-selected="true">Emotes</button>
+        <button class="tab-btn" data-tab="excluded" role="tab" aria-selected="false">Excluded</button>
+    </nav>
+
+    <main class="tab-panels">
+        <!-- EMOTES TAB -->
+        <section id="panel-emotes" class="tab-panel">
+
+            <div id="view-home" class="stack">
+                <section class="field">
+                    <label for="channel-query">Add emotes from a channel or set</label>
+                    <div class="field-row">
+                        <input type="text" id="channel-query" placeholder="Twitch username, 7tv.app link, or ID">
+                        <button id="find-sets" class="btn-primary">Find</button>
+                    </div>
+                    <span class="hint" id="find-hint"></span>
+                </section>
+
+                <section class="field">
+                    <div class="section-head">
+                        <span class="section-label">Active channels</span>
+                        <span class="hint" id="channels-summary"></span>
+                    </div>
+                    <div id="channel-cards" class="card-list"></div>
+                    <p class="empty-state" id="channels-empty">
+                        The first setup may take a minute while the default channel is being installed. Reopen this
+                        popup in a moment to see it.
+                    </p>
+                </section>
+
+                <section class="field">
+                    <div class="section-head"><span class="section-label">Emote size</span><span id="emote-size-value"
+                            class="size-value">2x</span></div>
+                    <input type="range" id="emote-size" min="1" max="4" value="2">
+                </section>
+
+                <section class="field">
+                    <button id="reload-emotes" class="btn-secondary btn-full">
+                        <svg class="icon" viewBox="0 0 16 16" fill="none">
+                            <path d="M13.5 8a5.5 5.5 0 1 1-1.66-3.94M13.5 2v3.5H10" stroke="currentColor"
+                                stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                        Reload emotes
+                    </button>
+                    <span class="hint" id="emote-count"></span>
+                    <span class="hint error" id="reload-warning"></span>
+                </section>
+            </div>
+
+            <!-- manage-channel- -->
+            <div id="view-manage" class="stack" hidden>
+                <button id="back-btn" class="btn-back">
+                    <svg class="icon" viewBox="0 0 16 16" fill="none">
+                        <path d="M10 3 5 8l5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
+                            stroke-linejoin="round" />
+                    </svg>
+                    Back
+                </button>
+
+                <div class="manage-head">
+                    <h2 id="manage-channel-title"></h2>
+                    <button id="hard-reload-channel" class="btn-icon" title="Hard reload this channel's sets from 7TV">
+                        <svg class="icon" viewBox="0 0 16 16" fill="none">
+                            <path d="M13.5 8a5.5 5.5 0 1 1-1.66-3.94M13.5 2v3.5H10" stroke="currentColor"
+                                stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                    </button>
+                </div>
+                <span class="hint" id="manage-channel-summary"></span>
+                <span class="hint" id="manage-channel-status"></span>
+
+                <section class="field toggle-card">
+                    <label class="check-row">
+                        <input type="checkbox" id="always-main-toggle">
+                        <span>Always use main channel emote set</span>
+                    </label>
+                    <span class="hint">Follows whatever set the channel currently has equipped on 7TV (checked once a
+                        day). While on, sets below can't be toggled individually.</span>
+                    <div id="always-main-active" class="callout" hidden></div>
+                    <button id="refresh-main-now" class="btn-secondary btn-full">
+                        <svg class="icon" viewBox="0 0 16 16" fill="none">
+                            <path d="M13.5 8a5.5 5.5 0 1 1-1.66-3.94M13.5 2v3.5H10" stroke="currentColor"
+                                stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                        Refresh now
+                    </button>
+                </section>
+
+                <span class="hint error" id="manage-overlap-warning" hidden></span>
+
+                <div id="manage-set-list" class="card-list"></div>
+            </div>
+        </section>
+
+        <!-- EXCLUDED TAB -->
+        <section id="panel-excluded" class="tab-panel" hidden>
+            <p class="tab-intro">Emote names here will never be rendered or suggested, anywhere.</p>
+
+            <section class="field">
+                <div class="field-row">
+                    <input type="text" id="exclude-input" placeholder="Search an emote to exclude...">
+                    <button id="exclude-add" class="btn-secondary">Add exact</button>
+                </div>
+                <div id="exclude-search-results" class="search-results"></div>
+                <span class="hint" id="exclude-hint"></span>
+            </section>
+
+            <div id="excluded-list" class="card-list"></div>
+            <p class="empty-state" id="excluded-empty">No excluded emotes yet.</p>
+        </section>
+    </main>
+
+    <div id="save-bar">
+        <button id="save-btn" class="btn-primary btn-full" disabled>Save changes</button>
+        <span class="hint" id="save-hint">Nothing to save yet.</span>
+    </div>
+
+    <footer>
+        <span>Developed by <a href="https://aitji.xyz">@aitji</a> · Swarm Property. All rights reserved.</span>
+    </footer>
+
+    <div id="confirm-overlay" class="confirm-overlay" hidden>
+        <div class="confirm-box" role="alertdialog" aria-labelledby="confirm-title" aria-describedby="confirm-body">
+            <div class="confirm-title" id="confirm-title">Unsaved changes</div>
+            <div class="confirm-body" id="confirm-body">
+                You have changes that haven't been saved yet. Save them before leaving, or discard them?
+            </div>
+            <div class="confirm-actions">
+                <button id="confirm-save" class="btn-primary btn-full">Save</button>
+                <button id="confirm-cancel" class="btn-primary btn-full">Cancel, keep editing</button>
+                <button id="confirm-discard" class="btn-secondary btn-full">Discard changes</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+
+</html>

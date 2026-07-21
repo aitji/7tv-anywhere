@@ -26,7 +26,38 @@
         },
         {
             "flag": "not_support",
-            "pattern": "https://docs.google.com/*"
+            "pattern": "https://docs.google.com/*",
+            "note": "it just not :FeelsStrongMan:"
+        },
+        {
+            "flag": "not_support",
+            "pattern": "https://space.bilibili.com/*", // china youtube (or twitch)?
+            "note": "it all chinese language, im not compatible with google translate (yet)"
+        },
+        {
+            "flag": "not_support",
+            "pattern": "https://*.world.taobao.com/*", // china shop
+            "note": "it all chinese language, im not compatible with google translate (yet)"
+        },
+        {
+            "flag": "not_support",
+            "pattern": "https://*canva.com/*",
+            "note": "title and stuff is okay, but it might broke your canva"
+        },
+        {
+            "flag": "not_support",
+            "pattern": "https://figma.com/*",
+            "note": "buggy"
+        },
+        {
+            "flag": "not_support",
+            "pattern": "https://vscode.dev/*",
+            "note": ":oh: god :NO:"
+        },
+        {
+            "flag": "not_support",
+            "pattern": "https://*.replit.com/*",
+            "note": ":oh: god :NO:"
         },
         // support
         {
@@ -41,7 +72,8 @@
         },
         {
             "flag": "support",
-            "pattern": "https://*vercel.app/*"
+            "pattern": "https://*vercel.app/*",
+            "note": "should work"
         },
         {
             "flag": "support",
@@ -52,6 +84,97 @@
             "flag": "support",
             "pattern": "https://*twitch.tv/*",
             "note": "if you already have '7TV' extension, you may want to disabled this"
+        },
+        {
+            "flag": "support",
+            "pattern": "https://*diagrams.net/*",
+            "note": "it work somehow"
+        },
+        {
+            "flag": "support",
+            "pattern": "https://*reddit.com/*",
+            "note": "emote rending is mess up, but it still kinda work"
+        },
+        {
+            "flag": "support",
+            "pattern": "https://chatgpt.com/*",
+            "note": "we already have :NeuroChatting: at home"
+        },
+        {
+            "flag": "support",
+            "pattern": "https://claude.ai/*",
+            "note": "we already have :VedalChatting: at home"
+        },
+        {
+            "flag": "support",
+            "pattern": "https://mail.google.com/*",
+            "note": "should work correctly"
+        },
+        {
+            "flag": "support",
+            "pattern": "https://www.notion.so/*",
+            "note": "it's kinda work"
+        },
+        {
+            "flag": "support",
+            "pattern": "https://*.notion.site/*",
+            "note": "it's kinda work"
+        },
+        {
+            "flag": "support",
+            "pattern": "https://x.com/*",
+            "note": "turn twitcher people to twitcher chatter, oh wait they are the same"
+        },
+        {
+            "flag": "support",
+            "pattern": "https://*bsky.app/*",
+            "note": "should work"
+        },
+        {
+            "flag": "support",
+            "pattern": "https://*facebook.com/*",
+            "note": "should work correctly"
+        },
+        {
+            "flag": "support",
+            "pattern": "https://*messenger.com/*",
+            "note": "should work correctly"
+        },
+        // neurosama "easter egg?"
+        {
+            "flag": "support",
+            "pattern": "https://vedal.ai/pendsmthngonmydsk",
+            "note": "hey! you can't look at :evilBoogie: files without her permission"
+        },
+        {
+            "flag": "support",
+            "pattern": "https://*vedal.ai/*",
+            "note": ":vedal: :vedal: :vedal:"
+        },
+        {
+            "flag": "support",
+            "pattern": "https://*libraryofladev.com/*",
+            "note": "you creep :Scared:"
+        },
+        {
+            "flag": "support",
+            "pattern": "https://neurosama.com",
+            "note": ":Wokege: lavalamp warning"
+        },
+        {
+            "flag": "support",
+            "pattern": "https://blog.neurosama.com/*",
+            "note": "look kinda like neuro back then :Oldge:"
+        },
+        {
+            "flag": "support",
+            "pattern": "https://neurosama.shop/*",
+            "note": ":FIRE: :Thinking: work better than i tought :WATER: :Thinking2:"
+        },
+        {
+            "flag": "support",
+            "pattern": "https://swarmsync.app/*",
+            "note": "paid spyware, im not jealous or anything :RAGEY:"
         },
         // partially supported
         {

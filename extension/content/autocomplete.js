@@ -161,7 +161,7 @@
             if (activeIndex < 0 || !suggestions[activeIndex]) return
             e.preventDefault()
             e.stopPropagation()
-            commitSugg(suggestions[activeIndex])
+            commitSugg(suggestions[activeIndex], e.shiftKey)
         } else if (e.key === "Escape") {
             e.preventDefault()
             e.stopPropagation()
@@ -176,7 +176,7 @@
     }
 
     const viewportUpdate = () => (open && matchContext) && posDropdown(matchContext.el, matchContext)
-    const commitSugg = (emote) => {
+    const commitSugg = (emote, keepSearch = false) => {
         const ctx = matchContext
         if (!ctx) return
         ctx.el.focus()
@@ -193,10 +193,14 @@
             sel.addRange(range)
         }
 
-        const insert = document.execCommand("insertText", false, emote.name + " ")
-        if (!insert) manualInsert(ctx, emote.name + " ")
+        const rep = keepSearch
+            ? `${emote.name} :${ctx.query}`
+            : `${emote.name} `
 
-        closeDropdown()
+        const insert = document.execCommand("insertText", false, rep)
+        if (!insert) manualInsert(ctx, rep)
+
+        if (!keepSearch) closeDropdown()
     }
 
     const manualInsert = (ctx, rep) => {
@@ -265,7 +269,7 @@
             item.addEventListener("mousedown", (e) => {
                 e.preventDefault()
                 e.stopPropagation()
-                commitSugg(emote)
+                commitSugg(emote, e.shiftKey)
             })
             item.addEventListener("mouseenter", () => {
                 activeIndex = index

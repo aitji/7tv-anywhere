@@ -966,7 +966,7 @@ async function removeExcluded(name) {
     renderExcluded()
 }
 
-async function addExcludedName(name) {
+async function addExcludedName(name, keepSearch = false) {
     excludeHint.textContent = ""
     excludeHint.classList.remove("error")
 
@@ -979,8 +979,14 @@ async function addExcludedName(name) {
 
     excludedEmote.push(name)
     await ext.storage.local.set({ excludedEmote })
-    excludeInput.value = ""
-    excludeSearchResultsEl.innerHTML = ""
+    if (!keepSearch) {
+        excludeInput.value = ""
+        excludeSearchResultsEl.innerHTML = ""
+    } else {
+        const query = excludeInput.value.trim()
+        if (query) runExSearch(query)
+    }
+
     renderExcluded()
 
     if (!emoteByName.has(name)) excludeHint.textContent = `Saved. "${name}" wasn't found in your currently loaded emotes. double check spelling/case if that's unexpected.`
@@ -1014,10 +1020,10 @@ async function runExSearch(query) {
         name.title = emote.name
         row.appendChild(name)
 
-        row.addEventListener("click", () => addExcludedName(emote.name))
+        row.addEventListener("click", (e) => addExcludedName(emote.name, e.shiftKey))
         excludeSearchResultsEl.appendChild(row)
     })
 }
 
-excludeAddBtn.addEventListener("click", () => addExcludedName(excludeInput.value.trim()))
-excludeInput.addEventListener("keydown", e => (e.key === "Enter") && addExcludedName(excludeInput.value.trim()))
+excludeAddBtn.addEventListener("click", (e) => addExcludedName(excludeInput.value.trim(), e.shiftKey))
+excludeInput.addEventListener("keydown", e => (e.key === "Enter") && addExcludedName(excludeInput.value.trim(), e.shiftKey))

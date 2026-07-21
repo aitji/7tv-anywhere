@@ -45,7 +45,8 @@
         },
         {
             "flag": "support",
-            "pattern": "https://github.com/*"
+            "pattern": "https://github.com/*",
+            "note": "should work"
         },
         {
             "flag": "support",

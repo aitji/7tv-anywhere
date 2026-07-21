@@ -29,53 +29,11 @@ const FALLBACK_CFG = Object.freeze({
         ellie_minibot: "825937345",
         dougdoug: "31507411"
     }),
-    siteRules: Object.freeze([
-        // not support
-        {
-            "flag": "not_support",
-            "pattern": "https://discord.com/*",
-            "note": "typing in chat is broke"
-        },
-        {
-            "flag": "not_support",
-            "pattern": "https://word.cloud.microsoft/*",
-            "note": "it won't render and show you auto complete ui"
-        },
-        {
-            "flag": "not_support",
-            "pattern": "https://docs.google.com/*"
-        },
-        // support
-        {
-            "flag": "support",
-            "pattern": "https://*aitji.xyz/*",
-            "note": "it's me"
-        },
-        {
-            "flag": "support",
-            "pattern": "https://*youtube.com/*",
-            "note": "if you already have 'SwarmTube' extension, you may want to disabled this"
-        },
-        {
-            "flag": "support",
-            "pattern": "https://*vercel.app/*"
-        },
-        {
-            "flag": "support",
-            "pattern": "https://github.com/*"
-        },
-        {
-            "flag": "support",
-            "pattern": "https://*twitch.tv/*",
-            "note": "if you already have '7TV' extension, you may want to disabled this"
-        },
-        // partially supported, but on support
-        {
-            "flag": "support",
-            "pattern": "https://keep.google.com/*",
-            "note": "auto complete won't work, but emote will render"
-        }
-    ])
+    siteRules: Object.freeze([{
+        "flag": "support",
+        "pattern": "https://example.com",
+        "note": "hi..? this is awkward... the request to jsDelivr (GitHub) failed. did you install the extension and then cut the internet cable?"
+    }])
 })
 
 let cfgCache = null

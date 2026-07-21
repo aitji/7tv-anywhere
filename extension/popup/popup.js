@@ -151,6 +151,7 @@ async function reEmoteCount() {
 function safeHTML(v = '') {
     const el = document.createElement("span")
     el.textContent = String(v ?? '')
+    el.remove()
     return el.innerHTML ?? ''
 }
 
@@ -407,7 +408,7 @@ function renderCCard(channel, index) {
 
     const dragHandle = document.createElement("span")
     dragHandle.className = "drag-handle"
-    dragHandle.innerHTML = safeHTML(DRAG_ICON)
+    dragHandle.innerHTML = DRAG_ICON
     dragHandle.title = "Drag to reorder priority"
     top.appendChild(dragHandle)
 
@@ -419,14 +420,14 @@ function renderCCard(channel, index) {
 
     const name = document.createElement("span")
     name.className = "card-name"
-    name.innerHTML = safeHTML((alwayMain ? STAR_ICON : "") + `<span class="card-name-text"></span>`)
+    name.innerHTML = (alwayMain ? STAR_ICON : "") + `<span class="card-name-text"></span>`
     name.querySelector("span").textContent = channel.channelName
     name.querySelector("span").title = channel.channelName
     top.appendChild(name)
 
     const removeBtn = document.createElement("button")
     removeBtn.className = "card-icon-btn"
-    removeBtn.innerHTML = safeHTML(REMOVE_ICON)
+    removeBtn.innerHTML = REMOVE_ICON
     removeBtn.title = "Remove this channel and all of its sets"
     removeBtn.addEventListener("click", () => {
         draft.customSets = draft.customSets.filter(s => s.channelId !== channel.channelId)
@@ -653,7 +654,7 @@ function renderSetCard(set, pref, index) {
 
     const dragHandle = document.createElement("span")
     dragHandle.className = "drag-handle"
-    dragHandle.innerHTML = safeHTML(DRAG_ICON)
+    dragHandle.innerHTML = DRAG_ICON
     dragHandle.title = "Drag to reorder priority"
     top.appendChild(dragHandle)
 
@@ -665,14 +666,14 @@ function renderSetCard(set, pref, index) {
 
     const name = document.createElement("span")
     name.className = "card-name"
-    name.innerHTML = safeHTML((willActive ? STAR_ICON : "") + '<span class="card-name-text"></span>')
+    name.innerHTML = (willActive ? STAR_ICON : "") + '<span class="card-name-text"></span>'
     name.querySelector("span").textContent = set.setName
     name.querySelector("span").title = set.setName
     top.appendChild(name)
 
     const removeBtn = document.createElement("button")
     removeBtn.className = "card-icon-btn"
-    removeBtn.innerHTML = safeHTML(REMOVE_ICON)
+    removeBtn.innerHTML = REMOVE_ICON
     removeBtn.title = "Remove this set"
     removeBtn.addEventListener("click", () => {
         draft.customSets = draft.customSets.filter(s => s !== set)
@@ -911,7 +912,7 @@ function renderExcluded() {
 
         const dragHandle = document.createElement("span")
         dragHandle.className = "drag-handle"
-        dragHandle.innerHTML = safeHTML(DRAG_ICON)
+        dragHandle.innerHTML = DRAG_ICON
         dragHandle.title = "Drag to reorder"
         row.appendChild(dragHandle)
 
@@ -940,7 +941,7 @@ function renderExcluded() {
 
         const removeBtn = document.createElement("button")
         removeBtn.className = "card-icon-btn"
-        removeBtn.innerHTML = safeHTML(REMOVE_ICON)
+        removeBtn.innerHTML = REMOVE_ICON
         removeBtn.title = "Remove from excluded list"
         removeBtn.addEventListener("click", () => removeExcluded(name))
         row.appendChild(removeBtn)

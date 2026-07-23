@@ -116,6 +116,11 @@ jobs:
             dist/SHA256SUMS.txt
           generate_release_notes: true
 
+      - name: Purge jsDelivr cache
+        run: |
+          curl -fsS "https://purge.jsdelivr.net/gh/aitji/7tv-anywhere@main/sites.jsonc" || true
+          curl -fsS "https://purge.jsdelivr.net/gh/aitji/7tv-anywhere@main/extension/manifest.json" || true
+
   publish-firefox:
     if: startsWith(github.ref, 'refs/tags/v') || inputs.publish_firefox
     needs: build

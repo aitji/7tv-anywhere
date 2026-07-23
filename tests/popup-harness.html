@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>7TV Anywhere popup harness</title>
+</head>
+<body>
+    <script>
+        const storageListeners = []
+        const storageData = {
+            enabled: true,
+            disabledSites: [],
+            enabledUnsupportedSites: [],
+            customSets: [{
+                id: "set-one",
+                setName: "Main set",
+                count: 2,
+                preview: [],
+                channelId: "channel-one",
+                channelName: "Test channel",
+                enabled: true
+            }],
+            channelSettings: {
+                "channel-one": { alwaysMain: true, knownActiveSetId: "set-one" }
+            },
+            emoteSize: 2,
+            emoteSet: [
+                { name: "PauseSama", id: "pause", url: "/extension/icons/icon-16.png" },
+                { name: "LETSGO", id: "go", url: "/extension/icons/icon-16.png" }
+            ],
+            excludedEmote: ["0", "1"],
+            initStatus: { phase: "ready", message: "Ready.", updatedAt: Date.now() },
+            autoCheckUpdates: true,
+            updateCheckIntervalHours: 168
+        }
+        if (new URL(location.href).searchParams.has("draft")) {
+            storageData.pendingDraft = {
+                customSets: [
+                    ...structuredClone(storageData.customSets),
+                    {
+                        id: "set-two",
+                        setName: "Recovered set",
+                        count: 1,
+                        preview: [],
+                        channelId: "channel-two",
+                        channelName: "Recovered channel",
+                        enabled: true
+                    }
+                ],
+                channelSettings: structuredClone(storageData.channelSettings),
+                updatedAt: Date.now()
+            }
+            storageData.channelOperation = {
+                id: "recovered-operation",
+                query: "Recovered channel",
+                phase: "done",
+                message: "Added Recovered channel to your draft. Save when you are ready.",
+                startedAt: Date.now() - 1000,
+                updatedAt: Date.now(),
+                finishedAt: Date.now()
+            }
+        }
+
+        const pick = keys => {
+            if (typeof keys === "string") return { [keys]: storageData[keys] }
+            const list = Array.isArray(keys) ? keys : Object.keys(keys || {})
+            return Object.fromEntries(list.map(key => [key, storageData[key]]))
+        }
+        const emit = changes => storageListeners.forEach(listener => listener(changes, "local"))
+        const setStorage = async values => {
+            const changes = {}
+            for (const [key, value] of Object.entries(values)) {
+                changes[key] = { oldValue: storageData[key], newValue: value }
+                storageData[key] = value
+            }
+            emit(changes)
+        }
+        const removeStorage = async key => {
+            const keys = Array.isArray(key) ? key : [key]
+            const changes = {}
+            for (const name of keys) {
+                changes[name] = { oldValue: storageData[name], newValue: undefined }
+                delete storageData[name]
+            }
+            emit(changes)
+        }
+
+        globalThis.chrome = {
+            runtime: {
+                getManifest: () => ({ version: "1.0.4" }),
+                sendMessage: async message => {
+                    if (message.type === "GET_APP_STATE") return pick([
+                        "initStatus", "emoteLoadStatus", "channelOperation", "pendingDraft",
+                        "autoCheckUpdates", "updateCheckIntervalHours", "lastCheck", "updateInfo"
+                    ])
+                    if (message.type === "IS_SITE_UNSUPPORTED") return { unsupported: false, note: null }
+                    if (message.type === "GET_EMOTES") return { emotes: storageData.emoteSet }
+                    if (message.type === "GET_SUGGESTIONS") return { suggestions: storageData.emoteSet }
+                    if (message.type === "CHECK_FOR_UPDATE") return {
+                        checked: true,
+                        updateInfo: { currentVersion: "1.0.4", latestVersion: "1.0.4", updateAvailable: false }
+                    }
+                    if (message.type === "RELOAD_EMOTES") return { success: true, emotes: storageData.emoteSet }
+                    if (message.type === "SAVE_DRAFT") {
+                        await setStorage({
+                            customSets: message.draft.customSets,
+                            channelSettings: message.draft.channelSettings
+                        })
+                        await removeStorage("pendingDraft")
+                        return { success: true, emotes: storageData.emoteSet }
+                    }
+                    if (message.type === "DISCARD_DRAFT") {
+                        await removeStorage("pendingDraft")
+                        return { success: true }
+                    }
+                    if (message.type === "ADD_CHANNEL_TO_DRAFT") {
+                        await setStorage({
+                            channelOperation: {
+                                id: "test-operation",
+                                query: message.query,
+                                phase: "resolving",
+                                message: `Finding “${message.query}”… You can close this popup.`,
+                                startedAt: Date.now(),
+                                updatedAt: Date.now()
+                            }
+                        })
+                        await new Promise(resolve => setTimeout(resolve, 150))
+                        const state = storageData.pendingDraft || {
+                            customSets: structuredClone(storageData.customSets),
+                            channelSettings: structuredClone(storageData.channelSettings)
+                        }
+                        state.customSets.push({
+                            id: "set-two",
+                            setName: "Added set",
+                            count: 1,
+                            preview: [],
+                            channelId: "channel-two",
+                            channelName: message.query,
+                            enabled: true
+                        })
+                        await setStorage({
+                            pendingDraft: { ...state, updatedAt: Date.now() },
+                            channelOperation: {
+                                id: "test-operation",
+                                query: message.query,
+                                phase: "done",
+                                message: `Added ${message.query} to your draft. Save when you are ready.`,
+                                startedAt: Date.now() - 150,
+                                updatedAt: Date.now(),
+                                finishedAt: Date.now()
+                            }
+                        })
+                        return { success: true, message: `Added ${message.query} to your draft.` }
+                    }
+                    if (message.type === "REFRESH_SITE_RULES") return { success: true, count: 2 }
+                    return {}
+                }
+            },
+            tabs: { query: async () => [{ url: "https://www.youtube.com/live_chat" }] },
+            storage: {
+                local: {
+                    get: async keys => pick(keys),
+                    set: setStorage,
+                    remove: removeStorage
+                },
+                onChanged: { addListener(listener) { storageListeners.push(listener) } }
+            }
+        }
+
+        fetch("/extension/popup/popup.html")
+            .then(response => response.text())
+            .then(async text => {
+                const parsed = new DOMParser().parseFromString(text, "text/html")
+                const base = new URL("/extension/popup/popup.html", location.href)
+                const styles = [...parsed.querySelectorAll('link[rel="stylesheet"]')]
+                    .map(link => new URL(link.getAttribute("href"), base).pathname)
+                const scripts = [...parsed.querySelectorAll("script[src]")]
+                    .map(script => new URL(script.getAttribute("src"), base).pathname)
+                parsed.querySelectorAll("script").forEach(script => script.remove())
+                for (const href of styles) {
+                    const stylesheet = document.createElement("link")
+                    stylesheet.rel = "stylesheet"
+                    stylesheet.href = href
+                    document.head.appendChild(stylesheet)
+                }
+                document.body.replaceChildren(...parsed.body.childNodes)
+                for (const src of scripts) await new Promise((resolve, reject) => {
+                    const script = document.createElement("script")
+                    script.src = src
+                    script.onload = resolve
+                    script.onerror = reject
+                    document.body.appendChild(script)
+                })
+            })
+    </script>
+</body>
+</html>

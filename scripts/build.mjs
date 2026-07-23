@@ -1,4 +1,4 @@
-import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises"
+import { cp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises"
 import AdmZip from "adm-zip"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
@@ -43,10 +43,18 @@ const foxManifest = {
     version
 }
 
-await rm(outdir, { recursive: true, force: true })
-await rm(distDir, { recursive: true, force: true })
-await mkdir(outdir, { recursive: true })
+const clean = target => rm(target, {
+    recursive: true,
+    force: true,
+    maxRetries: 5,
+    retryDelay: 250
+})
+
+await clean(outdir)
 await mkdir(distDir, { recursive: true })
+for (const item of await readdir(distDir))
+    await clean(path.join(distDir, item))
+await mkdir(outdir, { recursive: true })
 
 for (const [nam, man] of [
     ["chrome", chromeManifest],

@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>7TV Anywhere runtime harness</title>
+</head>
+<body>
+    <main>
+        <h1>Live content test</h1>
+        <section aria-label="YouTube live chat">
+            <span id="message" dir="auto" class="style-scope yt-live-chat-text-message-renderer">PauseSama </span>
+            <div id="dynamic-chat"></div>
+        </section>
+
+        <section aria-label="Twitch editor">
+            <p class="chat-wysiwyg-input__placeholder" aria-hidden="true">Send a message</p>
+            <div id="twitch-editor" role="textbox" aria-multiline="true" data-a-target="chat-input"
+                class="chat-wysiwyg-input__editor" contenteditable="true" data-slate-editor="true">
+                <div data-slate-node="element" aria-hidden="true">vedal </div>
+            </div>
+        </section>
+
+        <section aria-label="Autocomplete">
+            <div id="plain-editor" role="textbox" aria-label="Test chat input" contenteditable="true"></div>
+        </section>
+
+        <div id="shadow-host"></div>
+    </main>
+
+    <script>
+        const storageData = {
+            enabled: true,
+            disabledSites: [],
+            enabledUnsupportedSites: [],
+            excludedEmote: [],
+            emoteSize: 2
+        }
+        const storageListeners = []
+        const emotes = [
+            { name: "PauseSama", id: "pause", url: "/extension/icons/icon-16.png", channelName: "test" },
+            { name: "LETSGO", id: "go", url: "/extension/icons/icon-16.png", channelName: "test" }
+        ]
+
+        globalThis.chrome = {
+            runtime: {
+                sendMessage: async message => {
+                    if (message.type === "IS_SITE_UNSUPPORTED") return { unsupported: false }
+                    if (message.type === "GET_EMOTES") return { emotes }
+                    if (message.type === "GET_SUGGESTIONS") {
+                        const query = String(message.query || "").toLowerCase()
+                        return { suggestions: emotes.filter(emote => emote.name.toLowerCase().includes(query)) }
+                    }
+                    return {}
+                },
+                onMessage: { addListener() {} }
+            },
+            storage: {
+                local: {
+                    async get(keys) {
+                        if (typeof keys === "string") return { [keys]: storageData[keys] }
+                        const list = Array.isArray(keys) ? keys : Object.keys(keys || {})
+                        return Object.fromEntries(list.map(key => [key, storageData[key]]))
+                    }
+                },
+                onChanged: { addListener(listener) { storageListeners.push(listener) } }
+            }
+        }
+
+        const shadow = document.getElementById("shadow-host").attachShadow({ mode: "open" })
+        const shadowMessage = document.createElement("span")
+        shadowMessage.id = "shadow-message"
+        shadowMessage.textContent = "PauseSama"
+        shadow.appendChild(shadowMessage)
+
+        setTimeout(() => {
+            const line = document.createElement("span")
+            line.id = "dynamic-message"
+            line.textContent = "LETSGO"
+            document.getElementById("dynamic-chat").appendChild(line)
+        }, 100)
+
+        if (new URL(location.href).searchParams.has("disable")) setTimeout(() => {
+            const oldValue = storageData.enabled
+            storageData.enabled = false
+            storageListeners.forEach(listener => listener({
+                enabled: { oldValue, newValue: false }
+            }, "local"))
+        }, 250)
+    </script>
+    <script src="/extension/content/render.js"></script>
+    <script src="/extension/content/autocomplete.js"></script>
+</body>
+</html>

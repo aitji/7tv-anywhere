@@ -1,3 +1,15 @@
 *.zip
 *.7z
 *.rar
+build/
+dist/
+tests/
+
+/.*
+!.github
+
+node_modules/
+web-ext-artifacts/
+gha-creds-*.json
+
+*.env*

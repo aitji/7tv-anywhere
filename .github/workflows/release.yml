@@ -4,57 +4,98 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version to release, e.g. 1.2.0. Leave empty to use extension/manifest.json's current version."
+        description: "Version to release, e.g. 1.2.0. Leave empty to use
+          extension/manifest.json."
         required: false
         type: string
+      create_github_release:
+        description: "Create or update the matching GitHub release"
+        required: true
+        default: true
+        type: boolean
+      publish_firefox:
+        description: "Submit the Firefox build to addons.mozilla.org"
+        required: true
+        default: false
+        type: boolean
+      publish_chrome:
+        description: "Submit the Chrome build to the Chrome Web Store"
+        required: true
+        default: false
+        type: boolean
   push:
     tags:
       - "v*.*.*"
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install locked tooling
+        run: npm ci --ignore-scripts --no-audit
+
       - name: Resolve version
         id: version
+        shell: bash
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
         run: |
-          if [ -n "${{ github.event.inputs.version }}" ]; then
-            VERSION="${{ github.event.inputs.version }}"
-          elif [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+          if [[ -n "$INPUT_VERSION" ]]; then
+            VERSION="$INPUT_VERSION"
+          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             VERSION="${GITHUB_REF#refs/tags/v}"
           else
-            VERSION=$(node -p "require('./extension/manifest.json').version")
+            VERSION="$(node -p "require('./extension/manifest.json').version")"
           fi
-          echo "Resolved version: $VERSION"
+
+          if [[ ! "$VERSION" =~ ^(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*)){0,3}$ ]]; then
+            echo "invalid browser extension version: $VERSION" >&2
+            exit 1
+          fi
+
+          echo "resolved version: $VERSION"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Sync manifest.json version
-        run: |
-          node -e "
-            const fs = require('fs');
-            const path = 'extension/manifest.json';
-            const manifest = JSON.parse(fs.readFileSync(path, 'utf8'));
-            manifest.version = '${{ steps.version.outputs.version }}';
-            fs.writeFileSync(path, JSON.stringify(manifest, null, 4) + '\n');
-          "
+      - name: Build browser-specific sources
+        run: npm run build -- --version "${{ steps.version.outputs.version }}"
 
-      - name: Package extension
+      - name: Validate source and generated manifests
         run: |
-          mkdir -p dist
-          cd extension
-          zip -r "../dist/7tv-anywhere-${{ steps.version.outputs.version }}-chrome.zip" . -x "*.DS_Store"
-          zip -r "../dist/7tv-anywhere-${{ steps.version.outputs.version }}-firefox.zip" . -x "*.DS_Store"
+          npm run check:source
+          npm run check:build
+
+      - name: Run Mozilla validation with warnings as errors
+        run: npm run lint:firefox
+
+      - name: Create checksums
+        working-directory: dist
+        run: sha256sum *.zip > SHA256SUMS.txt
 
       - uses: actions/upload-artifact@v4
         with:
           name: extension-builds
-          path: dist/*.zip
+          path: |
+            dist/*.zip
+            dist/SHA256SUMS.txt
+          if-no-files-found: error
 
   github-release:
+    if: startsWith(github.ref, 'refs/tags/v') || inputs.create_github_release
     needs: build
     runs-on: ubuntu-latest
     permissions:
@@ -70,5 +111,97 @@ jobs:
         with:
           tag_name: v${{ needs.build.outputs.version }}
           name: v${{ needs.build.outputs.version }}
-          files: dist/*.zip
+          files: |
+            dist/*.zip
+            dist/SHA256SUMS.txt
           generate_release_notes: true
+
+  publish-firefox:
+    if: startsWith(github.ref, 'refs/tags/v') || inputs.publish_firefox
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install locked tooling
+        run: npm ci --ignore-scripts --no-audit
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: extension-builds
+          path: dist
+
+      - name: Check AMO credentials
+        shell: bash
+        env:
+          AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
+          AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+        run: |
+          if [[ -z "$AMO_JWT_ISSUER" || -z "$AMO_JWT_SECRET" ]]; then
+            echo "AMO_JWT_ISSUER and AMO_JWT_SECRET repository secrets are required." >&2
+            exit 1
+          fi
+
+      - name: Extract the validated Firefox package
+        run: |
+          mkdir -p submission/firefox
+          unzip -q "dist/7tv-anywhere-${{ needs.build.outputs.version }}-firefox.zip" -d submission/firefox
+
+      - name: Submit to Firefox Add-ons
+        env:
+          WEB_EXT_API_KEY: ${{ secrets.AMO_JWT_ISSUER }}
+          WEB_EXT_API_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+        run: >-
+          npm exec -- web-ext sign --source-dir submission/firefox --channel
+          listed --amo-metadata amo-metadata.json --approval-timeout 0 --timeout
+          900000
+
+  publish-chrome:
+    if: github.event_name == 'workflow_dispatch' && inputs.publish_chrome
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: extension-builds
+          path: dist
+
+      - name: Check Chrome Web Store configuration
+        shell: bash
+        env:
+          CWS_SERVICE_ACCOUNT_JSON: ${{ secrets.CWS_SERVICE_ACCOUNT_JSON }}
+          CWS_PUBLISHER_ID: ${{ vars.CWS_PUBLISHER_ID }}
+          CWS_EXTENSION_ID: ${{ vars.CWS_EXTENSION_ID }}
+        run: |
+          if [[ -z "$CWS_SERVICE_ACCOUNT_JSON" || -z "$CWS_PUBLISHER_ID" || -z "$CWS_EXTENSION_ID" ]]; then
+            echo "CWS_SERVICE_ACCOUNT_JSON secret and CWS_PUBLISHER_ID/CWS_EXTENSION_ID variables are required." >&2
+            exit 1
+          fi
+
+      - name: Authenticate to Google Cloud
+        id: google-auth
+        uses: google-github-actions/auth@v3
+        with:
+          credentials_json: ${{ secrets.CWS_SERVICE_ACCOUNT_JSON }}
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/chromewebstore
+
+      - name: Upload and submit to the Chrome Web Store
+        env:
+          CWS_ACCESS_TOKEN: ${{ steps.google-auth.outputs.access_token }}
+          CWS_PUBLISHER_ID: ${{ vars.CWS_PUBLISHER_ID }}
+          CWS_EXTENSION_ID: ${{ vars.CWS_EXTENSION_ID }}
+        run: >-
+          node scripts/publish-chrome.mjs "dist/7tv-anywhere-${{
+          needs.build.outputs.version }}-chrome.zip"

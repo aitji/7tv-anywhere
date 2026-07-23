@@ -16,170 +16,190 @@
         // not support
         {
             "flag": "not_support",
-            "pattern": "https://discord.com/*",
+            "host": "discord.com",
             "note": "typing in chat is broke"
         },
         {
             "flag": "not_support",
-            "pattern": "https://word.cloud.microsoft/*",
+            "host": "word.cloud.microsoft",
             "note": "it won't render and show you auto complete ui"
         },
         {
             "flag": "not_support",
-            "pattern": "https://docs.google.com/*",
+            "host": "docs.google.com",
             "note": "it just not :FeelsStrongMan:"
         },
         {
             "flag": "not_support",
-            "pattern": "https://space.bilibili.com/*", // china youtube (or twitch)?
+            "host": "space.bilibili.com", // china youtube (or twitch)?
             "note": "it all chinese language, im not compatible with google translate (yet)"
         },
         {
             "flag": "not_support",
-            "pattern": "https://*.world.taobao.com/*", // china shop
+            "host": "world.taobao.com", // china shop
+            "subdomain": true,
             "note": "it all chinese language, im not compatible with google translate (yet)"
         },
         {
             "flag": "not_support",
-            "pattern": "https://*canva.com/*",
+            "host": "canva.com",
+            "subdomain": true,
             "note": "title and stuff is okay, but it might broke your canva"
         },
         {
             "flag": "not_support",
-            "pattern": "https://figma.com/*",
+            "host": "figma.com",
+            "subdomain": true,
             "note": "buggy"
         },
         {
             "flag": "not_support",
-            "pattern": "https://vscode.dev/*",
+            "host": "vscode.dev",
             "note": ":oh: god :NO:"
         },
         {
             "flag": "not_support",
-            "pattern": "https://*.replit.com/*",
+            "host": "replit.com",
+            "subdomain": true,
             "note": ":oh: god :NO:"
         },
+
         // support
         {
             "flag": "support",
-            "pattern": "https://*aitji.xyz/*",
+            "host": "aitji.xyz",
+            "subdomain": true,
             "note": "it's me"
         },
         {
             "flag": "support",
-            "pattern": "https://*youtube.com/*",
+            "host": "youtube.com",
+            "subdomain": true,
             "note": "if you already have 'SwarmTube' extension, you may want to disabled this"
         },
         {
             "flag": "support",
-            "pattern": "https://*vercel.app/*",
+            "host": "vercel.app",
+            "subdomain": true,
             "note": "should work"
         },
         {
             "flag": "support",
-            "pattern": "https://github.com/*",
+            "host": "github.com",
             "note": "should work"
         },
         {
             "flag": "support",
-            "pattern": "https://*twitch.tv/*",
+            "host": "twitch.tv",
+            "subdomain": true,
             "note": "if you already have '7TV' extension, you may want to disabled this"
         },
         {
             "flag": "support",
-            "pattern": "https://*diagrams.net/*",
+            "host": "diagrams.net",
+            "subdomain": true,
             "note": "it work somehow"
         },
         {
             "flag": "support",
-            "pattern": "https://*reddit.com/*",
+            "host": "reddit.com",
+            "subdomain": true,
             "note": "emote rending is mess up, but it still kinda work"
         },
         {
             "flag": "support",
-            "pattern": "https://chatgpt.com/*",
+            "host": "chatgpt.com",
             "note": "we already have :NeuroChatting: at home"
         },
         {
             "flag": "support",
-            "pattern": "https://claude.ai/*",
+            "host": "claude.ai",
             "note": "we already have :VedalChatting: at home"
         },
         {
             "flag": "support",
-            "pattern": "https://mail.google.com/*",
+            "host": "mail.google.com",
             "note": "should work correctly"
         },
         {
             "flag": "support",
-            "pattern": "https://www.notion.so/*",
+            "host": "www.notion.so",
             "note": "it's kinda work"
         },
         {
             "flag": "support",
-            "pattern": "https://*.notion.site/*",
+            "host": "notion.site",
+            "subdomain": true,
             "note": "it's kinda work"
         },
         {
             "flag": "support",
-            "pattern": "https://x.com/*",
+            "host": "x.com",
             "note": "turn twitcher people to twitcher chatter, oh wait they are the same"
         },
         {
             "flag": "support",
-            "pattern": "https://*bsky.app/*",
+            "host": "bsky.app",
+            "subdomain": true,
             "note": "should work"
         },
         {
             "flag": "support",
-            "pattern": "https://*facebook.com/*",
+            "host": "facebook.com",
+            "subdomain": true,
             "note": "should work correctly"
         },
         {
             "flag": "support",
-            "pattern": "https://*messenger.com/*",
+            "host": "messenger.com",
+            "subdomain": true,
             "note": "should work correctly"
         },
+
         // neurosama "easter egg?"
         {
             "flag": "support",
-            "pattern": "https://vedal.ai/pendsmthngonmydsk",
+            "host": "vedal.ai",
+            "pattern": ["/pendsmthngonmydsk"],
             "note": "hey! you can't look at :evilBoogie: files without her permission"
         },
         {
             "flag": "support",
-            "pattern": "https://*vedal.ai/*",
+            "host": "vedal.ai",
+            "subdomain": true,
             "note": ":vedal: :vedal: :vedal:"
         },
         {
             "flag": "support",
-            "pattern": "https://*libraryofladev.com/*",
+            "host": "libraryofladev.com",
+            "subdomain": true,
             "note": "you creep :Scared:"
         },
         {
             "flag": "support",
-            "pattern": "https://neurosama.com",
+            "host": "neurosama.com",
             "note": ":Wokege: lavalamp warning"
         },
         {
             "flag": "support",
-            "pattern": "https://blog.neurosama.com/*",
+            "host": "blog.neurosama.com",
             "note": "look kinda like neuro back then :Oldge:"
         },
         {
             "flag": "support",
-            "pattern": "https://neurosama.shop/*",
+            "host": "neurosama.shop",
             "note": ":FIRE: :Thinking: work better than i tought :WATER: :Thinking2:"
         },
         {
             "flag": "support",
-            "pattern": "https://swarmsync.app/*",
+            "host": "swarmsync.app",
             "note": "paid spyware, im not jealous or anything :RAGEY:"
         },
+
         // partially supported
         {
             "flag": "support",
-            "pattern": "https://keep.google.com/*",
+            "host": "keep.google.com",
             "note": "auto complete won't work, but emote will render"
         }
     ]

@@ -1,0 +1,385 @@
+.card-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px
+}
+
+.card-bottom,
+.card-top {
+    align-items: center;
+    display: flex
+}
+
+.card {
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius);
+    padding: 11px;
+    box-shadow: var(--shadow-card)
+}
+
+.card-top {
+    gap: 8px
+}
+
+.card-name {
+    flex: 1;
+    min-width: 0;
+    font-weight: 600;
+    font-size: 12.5px;
+    display: flex;
+    align-items: center;
+    gap: 5px
+}
+
+.card-name-text,
+.search-result-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap
+}
+
+.card-status,
+.excluded-row .card-name {
+    font-weight: 500
+}
+
+.drag-handle {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    color: var(--text-tertiary);
+    cursor: grab;
+    touch-action: none;
+}
+
+.drag-handle:active {
+    cursor: grabbing;
+}
+
+.card-draggable.dragging {
+    opacity: 0.4;
+}
+
+.card-draggable {
+    transition: transform .12s ease;
+}
+
+.priority-badge {
+    flex-shrink: 0;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    background: var(--bg-elevated-2);
+    border-radius: 999px;
+    min-width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 5px;
+}
+
+.star-icon {
+    color: var(--amber);
+    flex-shrink: 0
+}
+
+.card-icon-btn {
+    border: none;
+    background: 0 0;
+    color: var(--text-tertiary);
+    padding: 3px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    flex-shrink: 0
+}
+
+.card-icon-btn:hover {
+    color: var(--red);
+    background: rgba(245, 101, 101, .12)
+}
+
+.btn-danger {
+    padding: 8px 14px;
+    color: #fff;
+    background: var(--red);
+}
+
+.btn-danger:hover {
+    filter: brightness(1.08);
+}
+
+.move-controls {
+    display: none;
+    align-items: center;
+    gap: 2px;
+}
+
+.move-btn {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    font-size: 15px;
+}
+
+.card-sub {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-top: 3px
+}
+
+.preview-strip,
+.toggle-card #refresh-main-now {
+    margin-top: 9px
+}
+
+.preview-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    max-height: 48px;
+    overflow: hidden
+}
+
+.preview-strip img {
+    width: 22px;
+    height: 22px;
+    object-fit: contain;
+    border-radius: 5px;
+    flex-shrink: 0
+}
+
+.card-bottom {
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 10px
+}
+
+#save-hint,
+#view-manage .field:first-of-type {
+    margin-top: 6px
+}
+
+.card-status {
+    font-size: 11px
+}
+
+.card-status.on {
+    color: var(--green)
+}
+
+.card-status.off,
+.excluded-thumb.no-thumb,
+.muted,
+footer {
+    color: var(--text-tertiary)
+}
+
+.card-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0
+}
+
+.card.is-main-set {
+    border-color: rgba(240, 180, 41, .35)
+}
+
+.search-results {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin-top: 6px;
+    max-height: 150px;
+    overflow-y: auto
+}
+
+.search-results:empty {
+    margin-top: 0
+}
+
+.search-result {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-sm);
+    font-size: 12px
+}
+
+.search-result:hover {
+    border-color: var(--accent);
+    background: var(--accent-soft)
+}
+
+.excluded-thumb,
+.search-result img {
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
+    border-radius: 4px;
+    background: var(--bg-elevated-2);
+    flex-shrink: 0
+}
+
+.excluded-thumb.no-thumb {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px
+}
+
+.excluded-row {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 8px 10px
+}
+
+.check-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 17px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.25;
+    color: var(--text);
+    user-select: none;
+}
+
+.check-row span {
+    display: block;
+}
+
+.check-row input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+
+    width: 17px;
+    height: 17px;
+    margin: 0;
+    flex: none;
+    position: relative;
+    box-sizing: border-box;
+
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    background: var(--bg-elevated);
+
+    cursor: pointer;
+    transition: .15s;
+}
+
+.check-row input[type="checkbox"]:hover {
+    border-color: var(--accent);
+    background: var(--bg-elevated-2);
+}
+
+.check-row input[type="checkbox"]:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 4px var(--accent-soft);
+}
+
+.check-row input[type="checkbox"]:checked {
+    background: var(--accent);
+    border-color: var(--accent);
+}
+
+.check-row input[type="checkbox"]::after {
+    content: "";
+    position: absolute;
+    left: 4px;
+    top: 1px;
+
+    width: 4px;
+    height: 8px;
+
+    border: solid #fff;
+    border-width: 0 2px 2px 0;
+
+    transform: rotate(45deg) scale(0);
+    transition: transform .12s ease;
+}
+
+.check-row input[type="checkbox"]:checked::after {
+    transform: rotate(45deg) scale(1);
+}
+
+.check-row input[type="checkbox"]:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+}
+
+.toggle-card {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius);
+    padding: 11px
+}
+
+.manage-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px
+}
+
+.manage-head h2 {
+    font-size: 14.5px;
+    margin: 0
+}
+
+.switch {
+    width: 34px;
+    height: 19px;
+    padding: 0;
+    background: var(--border);
+    border: none;
+    border-radius: 999px;
+    flex-shrink: 0
+}
+
+.switch[aria-checked=true] {
+    background: var(--green)
+}
+
+.switch.switch-disabled {
+    opacity: .35;
+    cursor: default
+}
+
+.switch-sm {
+    width: 30px;
+    height: 17px
+}
+
+.switch-knob {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 15px;
+    height: 15px;
+    background: #fff;
+    border-radius: 50%;
+    transition: left .15s
+}
+
+.switch-sm .switch-knob {
+    width: 13px;
+    height: 13px
+}
+
+.switch[aria-checked=true] .switch-knob {
+    left: 17px
+}
+
+.switch-sm[aria-checked=true] .switch-knob {
+    left: 15px
+}

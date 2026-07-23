@@ -6,6 +6,7 @@
     const DEBOUNCE_MS = 90
 
     let isActive = false
+    let siteEnabled = false
     let host = null
     let shadow = null
     let listEl = null
@@ -19,6 +20,7 @@
 
     init()
     async function init() {
+        document.addEventListener("visibilitychange", visibilityChange)
         await elvActive()
         ext.storage.onChanged.addListener(async (changes, area) => (area === "local" && ("enabled" in changes || "disabledSites" in changes || "enabledUnsupportedSites" in changes)) && await elvActive())
     }
@@ -34,22 +36,38 @@
         const { enabled = true, disabledSites = [], enabledUnsupportedSites = [] } = await ext.storage.local.get(["enabled", "disabledSites", "enabledUnsupportedSites"])
         const isUnsupported = await checkUnsupported()
         const siteOk = isUnsupported ? enabledUnsupportedSites.includes(location.hostname) : !disabledSites.includes(location.hostname)
-        const beActive = enabled && siteOk
+        siteEnabled = enabled && siteOk
+        setActive(siteEnabled && !document.hidden)
+    }
+
+    function visibilityChange() {
+        setActive(siteEnabled && !document.hidden)
+    }
+
+    function setActive(beActive) {
         if (beActive === isActive) return
         isActive = beActive
 
         if (isActive) attachListener()
         else {
             detachListener()
-            closeDropdown()
+            unloadDropdown()
         }
+    }
+
+    function unloadDropdown() {
+        closeDropdown()
+        host?.remove()
+        host = null
+        shadow = null
+        listEl = null
     }
 
     // helpers
     const attachListener = () => {
         document.addEventListener("input", onInput, true)
         document.addEventListener("keydown", onKeydown, true)
-        document.addEventListener("mousedown", onDocMouseDown, true)
+        document.addEventListener("pointerdown", onDocPointerDown, true)
         window.addEventListener("scroll", viewportUpdate, true)
         window.addEventListener("resize", viewportUpdate, true)
     }
@@ -57,7 +75,7 @@
     const detachListener = () => {
         document.removeEventListener("input", onInput, true)
         document.removeEventListener("keydown", onKeydown, true)
-        document.removeEventListener("mousedown", onDocMouseDown, true)
+        document.removeEventListener("pointerdown", onDocPointerDown, true)
         window.removeEventListener("scroll", viewportUpdate, true)
         window.removeEventListener("resize", viewportUpdate, true)
     }
@@ -73,8 +91,20 @@
     }
 
     const isEditable = (el) => !!el && (isTextField(el) || el.isContentEditable)
+    const editableFromEvent = (event) => {
+        const path = typeof event.composedPath === "function" ? event.composedPath() : [event.target]
+        for (const item of path) {
+            if (!(item instanceof Element)) continue
+            if (isTextField(item)) return item
+            if (item.isContentEditable) {
+                return item.closest("[contenteditable='true'],[contenteditable=''],[role='textbox']") || item
+            }
+        }
+        return null
+    }
+
     const onInput = (e) => {
-        const el = e.target
+        const el = editableFromEvent(e)
         if (!isEditable(el)) {
             if (open) closeDropdown()
             return
@@ -110,20 +140,23 @@
             if (!sel || sel.rangeCount === 0) return null
             const range = sel.getRangeAt(0)
             if (!range.collapsed) return null
-            const node = range.startContainer
-            if (node.nodeType !== Node.TEXT_NODE || !el.contains(node)) return null
+            if (!el.contains(range.startContainer) && el !== range.startContainer) return null
 
-            const offset = range.startOffset
-            const before = node.nodeValue.slice(0, offset)
+            const beforeRange = document.createRange()
+            beforeRange.selectNodeContents(el)
+            try { beforeRange.setEnd(range.startContainer, range.startOffset) }
+            catch { return null }
+            const before = beforeRange.cloneContents().textContent || ""
             const m = before.match(TRIGGER_RE)
             if (!m) return null
+            const end = before.length
+            const replaceRange = rangeFromTextOffsets(el, end - m[0].length, end)
+            if (!replaceRange) return null
 
             return {
                 kind: "editable",
                 el,
-                node,
-                start: offset - m[0].length,
-                end: offset,
+                range: replaceRange,
                 query: m[1]
             }
         }
@@ -134,15 +167,18 @@
     const queueSugg = (query) => {
         clearTimeout(debounceTimer)
         const myToken = ++reqToken
+        renderStatus("Searching...")
 
         debounceTimer = setTimeout(async () => {
-            const res = await ext.runtime.sendMessage({ type: "GET_SUGGESTIONS", query })
+            let res = null
+            try { res = await ext.runtime.sendMessage({ type: "GET_SUGGESTIONS", query }) }
+            catch { }
             if (myToken !== reqToken) return
             suggestions = (res && res.suggestions) || []
             activeIndex = suggestions.length ? 0 : -1
 
             if (suggestions.length) renderDropdown()
-            else closeDropdown()
+            else renderStatus("No matching emotes")
         }, DEBOUNCE_MS)
     }
 
@@ -169,7 +205,7 @@
         }
     }
 
-    const onDocMouseDown = (e) => {
+    const onDocPointerDown = (e) => {
         if (!open) return
         if (host && e.composedPath().includes(host)) return
         closeDropdown()
@@ -183,12 +219,13 @@
 
         if (ctx.kind === "field") ctx.el.setSelectionRange(ctx.start, ctx.end)
         else {
-            const range = document.createRange()
+            let range = ctx.range
+            if (!range || !range.startContainer || !range.startContainer.isConnected) {
+                const current = isMatch(ctx.el)
+                if (!current || current.kind !== "editable") return closeDropdown()
+                range = current.range
+            }
             const sel = window.getSelection()
-            const len = ctx.node.nodeValue ? ctx.node.nodeValue.length : 0
-
-            range.setStart(ctx.node, Math.min(ctx.start, len))
-            range.setEnd(ctx.node, Math.min(ctx.end, len))
             sel.removeAllRanges()
             sel.addRange(range)
         }
@@ -214,16 +251,17 @@
             el.setSelectionRange(pos, pos)
             el.dispatchEvent(new InputEvent("input", { bubbles: true, cancelable: true, inputType: "insertText", data: rep }))
         } else {
-            const node = ctx.node
-            const text = node.nodeValue
-            node.nodeValue = text.slice(0, ctx.start) + rep + text.slice(ctx.end)
-            const range = document.createRange()
-            const pos = ctx.start + rep.length
-            range.setStart(node, pos)
-            range.setEnd(node, pos)
+            const range = ctx.range
+            if (!range) return
+            range.deleteContents()
+            const node = document.createTextNode(rep)
+            range.insertNode(node)
+            const selectionRange = document.createRange()
+            selectionRange.setStartAfter(node)
+            selectionRange.collapse(true)
             const sel = window.getSelection()
             sel.removeAllRanges()
-            sel.addRange(range)
+            sel.addRange(selectionRange)
             ctx.el.dispatchEvent(new InputEvent("input", { bubbles: true, cancelable: true, inputType: "insertText", data: rep }))
         }
     }
@@ -240,22 +278,25 @@
 
         shadow = host.attachShadow({ mode: "open" })
         const style = document.createElement("style")
-        style.textContent = `.ea-dropdown{position:fixed;width:260px;max-height:260px;overflow-y:auto;background:#161b22;border:1px solid #30363d;border-radius:8px;box-shadow:0 8px 24px rgba(1,4,9,0.6);padding:4px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;} .ea-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:pointer;color:#c9d1d9;font-size:13px;line-height:1.2;} .ea-item img{width:24px;height:24px;object-fit:contain;flex-shrink:0;} .ea-item span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;} .ea-item-active{background:#1f6feb33;color:#58a6ff;} .ea-dropdown::-webkit-scrollbar{width:8px;} .ea-dropdown::-webkit-scrollbar-thumb{background:#30363d;border-radius:4px;}`
+        style.textContent = `.ea-dropdown{position:fixed;width:min(260px,calc(100vw - 8px));max-height:min(260px,calc(100vh - 12px));overflow-y:auto;background:#161b22;border:1px solid #30363d;border-radius:8px;box-shadow:0 8px 24px rgba(1,4,9,0.6);padding:4px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;} .ea-item{display:flex;align-items:center;gap:8px;min-height:36px;padding:6px 8px;border-radius:6px;cursor:pointer;color:#c9d1d9;font-size:13px;line-height:1.2;} .ea-item img{width:24px;height:24px;object-fit:contain;flex-shrink:0;} .ea-item span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;} .ea-item-active{background:#1f6feb33;color:#58a6ff;} .ea-status{padding:9px 10px;color:#8b949e;font-size:12px;} .ea-dropdown::-webkit-scrollbar{width:8px;} .ea-dropdown::-webkit-scrollbar-thumb{background:#30363d;border-radius:4px;} @media(pointer:coarse){.ea-item{min-height:44px;}}`
         shadow.appendChild(style)
 
         listEl = document.createElement("div")
         listEl.className = "ea-dropdown"
+        listEl.setAttribute("role", "listbox")
         listEl.style.display = "none"
         shadow.appendChild(listEl)
     }
 
     const renderDropdown = () => {
         ensureHost()
-        listEl.innerHTML = ""
+        listEl.replaceChildren()
 
         suggestions.forEach((emote, index) => {
             const item = document.createElement("div")
             item.className = "ea-item" + (index === activeIndex ? " ea-item-active" : "")
+            item.setAttribute("role", "option")
+            item.setAttribute("aria-selected", index === activeIndex ? "true" : "false")
 
             const img = document.createElement("img")
             img.src = emote.url
@@ -266,7 +307,7 @@
             name.textContent = emote.name
             item.appendChild(name)
 
-            item.addEventListener("mousedown", (e) => {
+            item.addEventListener("pointerdown", (e) => {
                 e.preventDefault()
                 e.stopPropagation()
                 commitSugg(emote, e.shiftKey)
@@ -284,10 +325,23 @@
         if (matchContext) posDropdown(matchContext.el, matchContext)
     }
 
+    const renderStatus = (message) => {
+        ensureHost()
+        listEl.replaceChildren()
+        const status = document.createElement("div")
+        status.className = "ea-status"
+        status.textContent = message
+        listEl.appendChild(status)
+        listEl.style.display = "block"
+        open = true
+        if (matchContext) posDropdown(matchContext.el, matchContext)
+    }
+
     const itemActive = () => {
         if (!listEl) return
         listEl.querySelectorAll(".ea-item").forEach((item, index) => {
             item.classList.toggle("ea-item-active", index === activeIndex)
+            item.setAttribute("aria-selected", index === activeIndex ? "true" : "false")
             if (index === activeIndex) item.scrollIntoView({ block: "nearest" })
         })
     }
@@ -307,7 +361,7 @@
         const rect = ctx.kind === "field" ? getFieldRect(el, ctx.end) : getEditRect(ctx)
         if (!rect) return
 
-        const width = 260
+        const width = Math.min(260, Math.max(160, window.innerWidth - 8))
         const margin = 6
         let left = rect.left
         let top = rect.bottom + margin
@@ -321,16 +375,43 @@
 
     const getEditRect = (ctx) => {
         try {
-            const range = document.createRange()
-            const len = ctx.node.nodeValue ? ctx.node.nodeValue.length : 0
-            const pos = Math.min(ctx.end, len)
-            range.setStart(ctx.node, pos)
-            range.setEnd(ctx.node, pos)
+            const range = ctx.range.cloneRange()
+            range.collapse(false)
 
             const rects = range.getClientRects()
             if (rects.length) return rects[0]
             return range.getBoundingClientRect()
         } catch { return ctx.el.getBoundingClientRect() }
+    }
+
+    const rangeFromTextOffsets = (root, start, end) => {
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+        let position = 0
+        let startNode = null
+        let startOffset = 0
+        let endNode = null
+        let endOffset = 0
+        let node
+
+        while ((node = walker.nextNode())) {
+            const next = position + (node.nodeValue || "").length
+            if (!startNode && start >= position && start <= next) {
+                startNode = node
+                startOffset = start - position
+            }
+            if (end >= position && end <= next) {
+                endNode = node
+                endOffset = end - position
+                break
+            }
+            position = next
+        }
+        if (!startNode || !endNode) return null
+
+        const range = document.createRange()
+        range.setStart(startNode, startOffset)
+        range.setEnd(endNode, endOffset)
+        return range
     }
 
     const properties = Object.freeze([

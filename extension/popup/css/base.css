@@ -1,0 +1,187 @@
+:root {
+    --bg: #0c0e14;
+    --bg-elevated: #151822;
+    --bg-elevated-2: #1c202c;
+    --border: #2a2e3b;
+    --border-soft: #21242f;
+    --text: #e6e8ef;
+    --text-secondary: #8e93a6;
+    --text-tertiary: #676c7d;
+    --accent: #8b5cf6;
+    --accent-hover: #9d72f8;
+    --accent-soft: rgba(139, 92, 246, 0.16);
+    --scroll-thumb: #393445;
+    --scroll-thumb-hover: #524665;
+    --green: #3ecf8e;
+    --red: #f56565;
+    --amber: #f0b429;
+    --radius-sm: 6px;
+    --radius: 10px;
+    --radius-lg: 14px;
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35)
+}
+
+a {
+    color: var(--text-tertiary);
+    filter: brightness(1);
+    transition: filter .15s
+}
+
+a:hover {
+    filter: brightness(0.8);
+}
+
+.app-header,
+.site-chip,
+.notice-banner {
+    margin-bottom: 10px;
+    display: flex
+}
+
+.app-header,
+.brand,
+.site-chip,
+.tab-bar {
+    display: flex
+}
+
+.btn-icon:hover,
+.btn-secondary:hover:not(:disabled) {
+    border-color: var(--text-tertiary)
+}
+
+.brand-title,
+.card-name,
+.card-sub,
+.manage-head h2,
+.site-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap
+}
+
+.switch,
+.tab-panels {
+    position: relative
+}
+
+.card-icon-btn,
+.check-row,
+.search-result,
+.switch,
+.tab-btn {
+    cursor: pointer
+}
+
+#save-hint,
+.empty-state,
+footer {
+    text-align: center
+}
+
+* {
+    box-sizing: border-box;
+    min-width: 0;
+    scrollbar-color: var(--scroll-thumb) var(--bg-elevated);
+    scrollbar-width: thin
+}
+
+*::-webkit-scrollbar {
+    width: 9px;
+    height: 9px
+}
+
+*::-webkit-scrollbar-track {
+    background: var(--bg-elevated)
+}
+
+*::-webkit-scrollbar-thumb {
+    background: var(--scroll-thumb);
+    border: 2px solid var(--bg-elevated);
+    border-radius: 999px
+}
+
+*::-webkit-scrollbar-thumb:hover {
+    background: var(--scroll-thumb-hover)
+}
+
+*::-webkit-scrollbar-corner {
+    background: var(--bg-elevated)
+}
+
+body,
+html {
+    overflow-x: hidden
+}
+
+body {
+    width: 360px;
+    height: 600px;
+    max-height: 600px;
+    overflow-y: auto;
+    margin: 0;
+    padding: 14px 14px 4px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 13px;
+    -webkit-font-smoothing: antialiased
+}
+
+.tab-btn,
+button,
+input[type=text] {
+    font-family: inherit
+}
+
+.icon {
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
+    color: currentColor
+}
+
+.app-header {
+    align-items: center;
+    justify-content: space-between
+}
+
+.brand {
+    align-items: center;
+    gap: 8px;
+    min-width: 0
+}
+
+.brand-icon {
+    border-radius: 5px;
+    flex-shrink: 0
+}
+
+.brand-title {
+    font-size: 14.5px;
+    font-weight: 700;
+    letter-spacing: -.01em
+}
+
+.site-chip {
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius);
+    color: var(--text-secondary)
+}
+
+.site-label {
+    flex: 1;
+    min-width: 0;
+    font-weight: 500;
+    color: var(--text)
+}
+
+.field>label,
+.tab-btn {
+    font-weight: 600;
+    font-size: 12.5px
+}

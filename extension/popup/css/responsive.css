@@ -1,0 +1,45 @@
+@media (max-width: 380px) {
+    body {
+        padding: 12px max(10px, env(safe-area-inset-right)) max(4px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+    }
+
+    .field-row {
+        align-items: stretch;
+    }
+
+    .field-row .btn-primary,
+    .field-row .btn-secondary {
+        padding-inline: 11px;
+    }
+}
+
+@media (pointer: coarse) {
+
+    button,
+    input[type=text],
+    select {
+        min-height: 40px;
+    }
+
+    .switch {
+        min-height: 19px;
+    }
+
+    .switch-sm {
+        min-height: 17px;
+    }
+
+    .drag-handle {
+        display: none;
+    }
+
+    .move-controls {
+        display: flex;
+    }
+
+    .card-icon-btn {
+        min-width: 34px;
+        min-height: 34px;
+        justify-content: center;
+    }
+}

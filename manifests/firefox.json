@@ -1,0 +1,25 @@
+{
+    "background": {
+        "scripts": [
+            "background/00-core.js",
+            "background/10-runtime.js",
+            "background/20-drafts.js",
+            "background/30-emotes.js",
+            "background/40-channels.js",
+            "background/50-suggestions.js",
+            "background/60-resolve.js"
+        ]
+    },
+    "browser_specific_settings": {
+        "gecko": {
+            "id": "7tvanywhere@aitji.xyz",
+            "strict_min_version": "140.0",
+            "data_collection_permissions": {
+                "required": ["none"]
+            }
+        },
+        "gecko_android": {
+            "strict_min_version": "142.0"
+        }
+    }
+}

@@ -1,33 +1,101 @@
-<h1><img src="extension/icons/icon.svg" alt="7TV Anywhere Logo" width="48" /> 7TV Anywhere</h1>
+<img src=".github/img/marquee.png" alt="7TV Anywhere, Bring your favorite 7TV emotes across the web">
 
-Bring 7TV emotes to <code>text fields</code> and <code>rendered text</code> on any website\*
+## **7**TV Anywhere
 
-A browser extension for **[7TV](https://7tv.app)** emote images wherever they show up, and adds a classic autocomplete to text fields <i>so you can type them yourself</i>.
+**Take your favorite [7TV](https://7tv.app) emotes beyond Twitch!**
 
-## Inspiration
+Bring the emotes you love to chats, comments, and conversations across the web. 7TV Anywhere recognizes emote names in supported webpages, displays their familiar images alongside the text, and helps you find emotes while typing with quick autocomplete.
 
-Heavily inspired by [SwarmTube](https://github.com/Igrolodz/7tv-SwarmTube)
-> you can tell by the default channel being [vedal987](https://www.twitch.tv/vedal987)
+> 7TV Anywhere is an independent, unofficial extension and **is not** affiliated with or endorsed by 7TV.
 
-same idea, but SwarmTube is scoped to YouTube's comment section. <u>7TV Anywhere</u> takes that idea further and runs everywhere\* instead.
+# 7TV Anywhere
+- [7TV Anywhere](#7tv-anywhere-1)
+  - [What you can do](#what-you-can-do)
+  - [Website compatibility](#website-compatibility)
+  - [Installation](#installation)
+    - [Packaged build](#packaged-build)
+    - [Build from source](#build-from-source)
+  - [Privacy](#privacy)
+  - [Inspiration](#inspiration)
 
-## How site support works
+## What you can do
 
-Some sites don't play nicely with a script that rewrites text nodes on the fly, an input a box owns, or a rich text editor, can break in ways that aren't worth working around. Instead of guessing per-site, the extension pulls a small <u>maintainer-authored</u> config, [`sites.jsonc`](./sites.jsonc), and checks the current page's URL against it before deciding whether to run
+- [x] Render 7TV emotes in supported webpage text
+- [x] Type `:emote` to search in compatible chats, comments, and text fields
+- [x] Add emotes from *Twitch channels* or *7TV emote sets*
+- [x] Follow a channel's *current main emote set* automatically
+- [x] Choose which channels and individual emotes are enabled
+- [x] Match emote names with or without case sensitivity
+- [x] Enable or disable the extension for individual websites
+- [x] Adjust emote size and channel priority
+- [x] Import and export your settings
+- [x] See loading, saving, and update activity through the popup and extension badge
+
+The popup is designed for both desktop browsers and Firefox for Android. Hidden tabs pause emote processing and release their lookup data until they become visible again, reducing background resource use.
+
+<img src=".github/img/screenshots.png" alt="7tv-anywhere's extension showcase on youtube live chat">
+
+> **alt-message:** 7tv-anywhere's extension showcase on youtube live chat
+
+## Website compatibility
+
+Websites build their text and editors in many different ways. Most ordinary webpage text works naturally, while some *rich-text editors* and *highly interactive pages* need special handling.
+
+**7**TV Anywhere uses the maintainer-authored [`sites.jsonc`](./sites.jsonc) rules to avoid known conflicts and provide site-specific notes. Unsupported websites can still be enabled manually when you want to try them.
+
+Compatibility can *vary* as websites update their layouts. If something breaks, please [open an issue](../../issues) and include the website, the affected page or editor, and what you expected to happen.
+
+<img src=".github/img/screenshots2.png" alt="7tv-anywhere's extension showcase on google search 'neurosama'">
+
+> **alt-message:** 7tv-anywhere's extension showcase on google search 'neurosama'
 
 ## Installation
 
-There's no store listing yet, so it's a manual install for now:
+Chrome and Firefox store listings are being prepared. Until they are available, you can install a packaged build from [GitHub Releases](../../releases).
 
-1. Grab the code, either clone this repo, or download a packaged zip from the [Releases](../../releases) page (there's a `-chrome` and a `-firefox` build).
-2. Open `chrome://extensions` (or `about:debugging#/runtime/this-firefox` on Firefox).
-3. Enable **Developer mode** (Chrome) or use **Load Temporary Add-on** (Firefox).
-4. Click **Load unpacked** and select the `extension/` folder.
-5. The extension should now be installed and active.
+### Packaged build
 
-> [!NOTE]
-> The extension checks for updates against this repo's `main` branch once a week and shows a badge when a newer version is out, but since it isn't on a store, updating still means grabbing the repo again and reloading it manually.
+1. Download the zip for your browser from the latest release:
+   - `7tv-anywhere-<version>-chrome.zip`
+   - `7tv-anywhere-<version>-firefox.zip`
+2. Extract the zip.
+3. For Chrome, open `chrome://extensions`, enable **Developer mode**, choose **Load unpacked**, and select the extracted folder.
+4. For Firefox, open `about:debugging#/runtime/this-firefox`, choose **Load Temporary Add-on**, and select `manifest.json` from the extracted folder.
+
+Firefox temporary add-ons are removed when Firefox closes. A signed store version will install normally once the listing is public.
+
+### Build from source
+
+Requires [Node.js](https://nodejs.org/) 20 or newer.
+
+```sh
+npm ci
+npm run check
+```
+
+The build creates:
+
+- unpacked Chrome and Firefox extensions in `build/`
+- ready-to-upload browser packages in `dist/`
+
+Run `npm run build` when you only need to rebuild the packages.
+
+<img src=".github/img/screenshots3.png" alt="7tv-anywhere's extension showcase on aitji's github">
+
+> **alt-message:** 7tv-anywhere's extension showcase on aitji's github
+
+## Privacy
+
+Webpage and text-field content is processed locally. **7**TV Anywhere **does not** contain analytics or advertising and **does not** upload raw webpage text or messages.
+
+See the full **[Privacy Policy](./PRIVACY.md)** for local storage, external service, and data-handling details.
+
+## Inspiration
+
+7TV Anywhere was heavily inspired by [SwarmTube](https://github.com/Igrolodz/7tv-SwarmTube), which brought a similar idea to YouTube comments. This project expands the experience to supported sites across the web.
+
+> The default `vedal987` channel is a little nod to where the idea started.
 
 <hr>
 
-Developed by <a href="https://aitji.xyz">@aitji</a> · Swarm Property. All rights reserved
+Developed by [@aitji](https://aitji.xyz) · Swarm Property · All rights reserved.

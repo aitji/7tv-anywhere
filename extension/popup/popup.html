@@ -5,7 +5,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>7TV Anywhere</title>
-    <link rel="stylesheet" href="popup.css">
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/notices.css">
+    <link rel="stylesheet" href="css/controls.css">
+    <link rel="stylesheet" href="css/channels.css">
+    <link rel="stylesheet" href="css/settings.css">
+    <link rel="stylesheet" href="css/responsive.css">
 </head>
 
 <body>
@@ -32,42 +37,14 @@
         </button>
     </div>
 
-    <div id="unsupported-banner" class="update-banner unsupported-banner hidden">
-        <svg class="icon" viewBox="0 0 16 16" fill="none">
-            <path d="M8 1.5 14.5 13h-13L8 1.5Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round" />
-            <path d="M8 6.25v3.25M8 11.75h.01" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" />
-        </svg>
-        <span class="banner-text">
-            <span>This page is disabled by default <b>by the maintainer</b>,
-                but you can still enable it. Some features may not work as expected.</span>
-            <span id="unsupported-banner-note" class="banner-note hidden"></span>
-        </span>
-    </div>
-
-    <div id="site-note-banner" class="update-banner site-note-banner hidden">
-        <svg class="icon" viewBox="0 0 16 16" fill="none">
-            <circle cx="8" cy="8" r="6.25" stroke="currentColor" stroke-width="1.2" />
-            <path d="M8 7.25v4M8 5.1h.01" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" />
-        </svg>
-        <span class="banner-text">
-            <span class="note-text">This page has a note from <b>the maintainer</b>.
-                It should work as intended, but you can still disable it if needed.</span>
-            <span>Maintainer note: <span id="site-note-text"></span></span>
-        </span>
-    </div>
-
-    <div id="update-banner" class="update-banner" hidden>
-        <svg class="icon" viewBox="0 0 16 16" fill="none">
-            <path d="M8 1.5 14.5 13h-13L8 1.5Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round" />
-            <path d="M8 6.25v3.25M8 11.75h.01" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" />
-        </svg>
-        <span id="update-banner-text"></span>
-        <a id="update-banner-link" href="#" target="_blank" rel="noopener">View</a>
+    <div id="notice-banner" class="notice-banner hidden" role="status" aria-live="polite">
+        <span id="notice-text" class="notice-lines"></span>
     </div>
 
     <nav class="tab-bar" role="tablist">
         <button class="tab-btn is-active" data-tab="emotes" role="tab" aria-selected="true">Emotes</button>
         <button class="tab-btn" data-tab="excluded" role="tab" aria-selected="false">Excluded</button>
+        <button class="tab-btn" data-tab="settings" role="tab" aria-selected="false">Settings</button>
     </nav>
 
     <main class="tab-panels">
@@ -81,7 +58,10 @@
                         <input type="text" id="channel-query" placeholder="Twitch username, 7tv.app link, or ID">
                         <button id="find-sets" class="btn-primary">Find</button>
                     </div>
-                    <span class="hint" id="find-hint"></span>
+                    <div id="channel-status" class="channel-status hidden" role="status" aria-live="polite">
+                        <span id="channel-status-spinner" class="status-spinner" aria-hidden="true" hidden></span>
+                        <span id="find-hint"></span>
+                    </div>
                 </section>
 
                 <section class="field">
@@ -91,8 +71,7 @@
                     </div>
                     <div id="channel-cards" class="card-list"></div>
                     <p class="empty-state" id="channels-empty">
-                        The first setup may take a minute while the default channel is being installed. Reopen this
-                        popup in a moment to see it.
+                        No channels are configured yet, add a Twitch channel or 7TV set above
                     </p>
                 </section>
 
@@ -162,7 +141,7 @@
 
         <!-- EXCLUDED TAB -->
         <section id="panel-excluded" class="tab-panel" hidden>
-            <p class="tab-intro">Emote names here will never be rendered or suggested, anywhere.</p>
+            <p class="tab-intro">Emote names here will never be rendered or suggested anywhere</p>
 
             <section class="field">
                 <div class="field-row">
@@ -174,13 +153,80 @@
             </section>
 
             <div id="excluded-list" class="card-list"></div>
-            <p class="empty-state" id="excluded-empty">No excluded emotes yet.</p>
+            <p class="empty-state" id="excluded-empty">No excluded emotes yet</p>
+        </section>
+
+        <!-- SETTINGS TAB -->
+        <section id="panel-settings" class="tab-panel" hidden>
+            <p class="tab-intro">Back up your setup or control how often 7TV Anywhere checks GitHub for a new version</p>
+
+            <section class="field settings-card">
+                <span class="section-label">Emote matching</span>
+                <label class="check-row settings-check-row">
+                    <input type="checkbox" id="case-sensitive">
+                    <span>Case-sensitive emote names</span>
+                </label>
+                <p class="hint settings-copy">Off by default, so <b>letsgo</b> can match <b>LETSGO</b></p>
+                <span id="case-sensitive-status" class="hint" role="status"></span>
+            </section>
+
+            <section class="field settings-card">
+                <div class="section-head">
+                    <span class="section-label">Update checks</span>
+                    <span id="update-last-checked" class="hint inline-hint">Never checked</span>
+                </div>
+                <label class="check-row settings-check-row">
+                    <input type="checkbox" id="auto-check-updates" checked>
+                    <span>Check automatically</span>
+                </label>
+                <label class="settings-label" for="update-check-interval">Check interval</label>
+                <select id="update-check-interval">
+                    <option value="24">Daily</option>
+                    <option value="168" selected>Weekly</option>
+                    <option value="720">Monthly</option>
+                </select>
+                <button id="check-update-now" class="btn-secondary btn-full">Check for update now</button>
+                <span id="update-check-status" class="hint" role="status"></span>
+            </section>
+
+            <section class="field settings-card">
+                <span class="section-label">Backup and restore</span>
+                <p class="hint settings-copy">Exports only extension settings no browsing data or sensitive information</p>
+                <div class="settings-actions">
+                    <button id="export-settings" class="btn-secondary">Export</button>
+                    <button id="import-settings" class="btn-secondary">Import</button>
+                </div>
+                <input id="import-settings-file" type="file" accept="application/json,.json" hidden>
+                <span id="settings-status" class="hint" role="status"></span>
+            </section>
+
+            <section class="field settings-card">
+                <span class="section-label">Compatibility rules</span>
+                <p class="hint settings-copy">Refresh the maintainer's supported-site notes without reinstalling</p>
+                <p id="site-rules-summary" class="settings-data-copy"></p>
+                <button id="refresh-site-rules" class="btn-secondary btn-full">Refresh site rules</button>
+                <span id="site-rules-status" class="hint" role="status"></span>
+            </section>
+
+            <section class="field settings-card">
+                <span class="section-label">Extension data</span>
+                <div class="settings-data-list">
+                    <div><span>Version</span><strong id="data-version"></strong></div>
+                    <div><span>Loaded</span><strong id="data-emotes"></strong></div>
+                    <div><span>Configured</span><strong id="data-channels"></strong></div>
+                    <div><span>Draft</span><strong id="data-draft"></strong></div>
+                    <div><span>Local storage</span><strong id="data-storage">Checking...</strong></div>
+                </div>
+            </section>
         </section>
     </main>
 
     <div id="save-bar">
-        <button id="save-btn" class="btn-primary btn-full" disabled>Save changes</button>
-        <span class="hint" id="save-hint">Nothing to save yet.</span>
+        <div class="save-actions">
+            <button id="discard-btn" class="btn-secondary" disabled>Discard</button>
+            <button id="save-btn" class="btn-primary" disabled>Save changes</button>
+        </div>
+        <span class="hint" id="save-hint">Nothing to save yet</span>
     </div>
 
     <footer>
@@ -190,18 +236,24 @@
     <div id="confirm-overlay" class="confirm-overlay" hidden>
         <div class="confirm-box" role="alertdialog" aria-labelledby="confirm-title" aria-describedby="confirm-body">
             <div class="confirm-title" id="confirm-title">Unsaved changes</div>
-            <div class="confirm-body" id="confirm-body">
-                You have changes that haven't been saved yet. Save them before leaving, or discard them?
-            </div>
+            <div class="confirm-body" id="confirm-body"></div>
             <div class="confirm-actions">
-                <button id="confirm-save" class="btn-primary btn-full">Save</button>
-                <button id="confirm-cancel" class="btn-primary btn-full">Cancel, keep editing</button>
-                <button id="confirm-discard" class="btn-secondary btn-full">Discard changes</button>
+                <button id="confirm-action" class="btn-primary btn-full">Continue</button>
+                <button id="confirm-cancel" class="btn-secondary btn-full">Cancel</button>
             </div>
         </div>
     </div>
 
-    <script src="popup.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/lifecycle.js"></script>
+    <script src="js/notices.js"></script>
+    <script src="js/site-controls.js"></script>
+    <script src="js/channel-list.js"></script>
+    <script src="js/channel-manage.js"></script>
+    <script src="js/draft.js"></script>
+    <script src="js/excluded.js"></script>
+    <script src="js/settings.js"></script>
+    <script src="js/entry.js"></script>
 </body>
 
 </html>

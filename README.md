@@ -60,9 +60,8 @@ Compatibility can *vary* as websites update their layouts. If something breaks, 
 
 ## Installation
 
-Install 7TV Anywhere from [Firefox Add-ons](https://addons.mozilla.org/en-US/addon/7tv-anywhere).
-
-The Chrome Web Store listing is currently under review and will be linked here once approved.
+- Install 7TV Anywhere from [Firefox Add-ons](https://addons.mozilla.org/en-US/addon/7tv-anywhere)
+- Install [Chrome Web Store](https://chromewebstore.google.com/detail/7tv-anywhere/cgkabhdkbomilgoofppnnanckhadjmkj)
 
 Packaged builds are also available from [GitHub Releases](../../releases) for manual installation, development, and testing.
 

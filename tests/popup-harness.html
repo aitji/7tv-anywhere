@@ -95,7 +95,7 @@
 
         globalThis.chrome = {
             runtime: {
-                getManifest: () => ({ version: "1.0.4" }),
+                getManifest: () => ({ version: "1.0.5" }),
                 sendMessage: async message => {
                     if (message.type === "GET_APP_STATE") return pick([
                         "initStatus", "emoteLoadStatus", "channelOperation", "pendingDraft",
@@ -106,7 +106,7 @@
                     if (message.type === "GET_SUGGESTIONS") return { suggestions: storageData.emoteSet }
                     if (message.type === "CHECK_FOR_UPDATE") return {
                         checked: true,
-                        updateInfo: { currentVersion: "1.0.4", latestVersion: "1.0.4", updateAvailable: false }
+                        updateInfo: { currentVersion: "1.0.5", latestVersion: "1.0.5", updateAvailable: false }
                     }
                     if (message.type === "RELOAD_EMOTES") return { success: true, emotes: storageData.emoteSet }
                     if (message.type === "SAVE_DRAFT") {

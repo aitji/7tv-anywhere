@@ -1,6 +1,6 @@
 {
     "name": "7tv-anywhere",
-    "version": "1.0.4",
+    "version": "1.0.5",
     "private": true,
     "description": "Build and validation tooling for the 7TV Anywhere browser extension",
     "scripts": {

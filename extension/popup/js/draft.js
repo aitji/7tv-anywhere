@@ -20,7 +20,18 @@ function serializeComparableState(state) {
         if (clean.alwaysMain !== true) delete clean.alwaysMain
         if (Object.keys(clean).length) channelSettings[channelId] = clean
     }
-    return JSON.stringify(canonicalize({ customSets, channelSettings }))
+    const excludedEmote = Array.from(new Set(
+        (state.excludedEmote || []).filter(name => typeof name === "string")
+    ))
+    return JSON.stringify(canonicalize({
+        caseSensitive: state.caseSensitive === true,
+        channelSettings,
+        customSets,
+        excludedEmote,
+        emoteSize: cleanEmoteSize(state.emoteSize),
+        matchPriority: cleanMatchPriority(state.matchPriority),
+        renderMode: cleanRenderMode(state.renderMode)
+    }))
 }
 
 const isDirty = (serialized = serializeComparableState(draft)) => serialized !== savedSerialized
@@ -45,6 +56,11 @@ function updateSaveBar() {
             pendingDraft: {
                 customSets: cloneState(draft.customSets),
                 channelSettings: cloneState(draft.channelSettings),
+                excludedEmote: cloneState(draft.excludedEmote || []),
+                emoteSize: cleanEmoteSize(draft.emoteSize),
+                caseSensitive: draft.caseSensitive === true,
+                matchPriority: cleanMatchPriority(draft.matchPriority),
+                renderMode: cleanRenderMode(draft.renderMode),
                 updatedAt: Date.now()
             }
         }).catch(() => { })
@@ -65,6 +81,7 @@ async function saveDraft() {
         saved = submitted
         savedSerialized = submittedComparable
         lastPersistedDraft = submittedSerialized
+        syncDraftGlobals()
         if (result.emotes) {
             setCount(result.emotes.length)
             setPopupEmote(result.emotes)
@@ -91,20 +108,25 @@ discardBtn.addEventListener("click", () => {
         onAction: async () => {
             await ext.runtime.sendMessage({ type: "DISCARD_DRAFT" }).catch(() => { })
             draft = cloneState(saved)
+            syncDraftGlobals()
             lastPersistedDraft = JSON.stringify(draft)
             channelOperationState = null
             renderChannelStatus()
             if (currentChannelId) closeManageView()
             renderHome()
+            renderExcluded()
+            renderNotice()
             updateSaveBar()
         }
     })
 })
 emoteSizeInput.addEventListener("input", () => emoteSizeValue.textContent = `${emoteSizeInput.value}x`)
 reloadBtn.addEventListener("click", async () => { await triggerReload() })
-emoteSizeInput.addEventListener("change", async () => {
-    await ext.storage.local.set({ emoteSize: parseInt(emoteSizeInput.value, 10) })
-    await triggerReload()
+emoteSizeInput.addEventListener("change", () => {
+    draft.emoteSize = cleanEmoteSize(emoteSizeInput.value)
+    syncDraftGlobals()
+    emoteSizeStatusEl.textContent = `Emote size ${draft.emoteSize}x added to your draft!`
+    updateSaveBar()
 })
 
 async function triggerReload() {

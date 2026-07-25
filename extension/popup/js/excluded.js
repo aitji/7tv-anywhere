@@ -1,4 +1,5 @@
 function renderExcluded() {
+    syncDraftGlobals()
     excludedListEl.replaceChildren()
     excludedEmptyEl.style.display = excludedEmote.length ? "none" : "block"
     excludedEmote.forEach(name => {
@@ -72,14 +73,16 @@ excludedListEl.addEventListener("dragover", (e) => {
 async function commitExcludDOM() {
     const visual = [...excludedListEl.querySelectorAll(".card-draggable")].map(el => el.dataset.emoteName)
     if (!visual.length) return
-    excludedEmote = visual
-    await ext.storage.local.set({ excludedEmote })
+    draft.excludedEmote = visual
+    renderNotice()
+    updateSaveBar()
 }
 
 async function removeExcluded(name) {
-    excludedEmote = excludedEmote.filter(n => n !== name)
-    await ext.storage.local.set({ excludedEmote })
+    draft.excludedEmote = (draft.excludedEmote || []).filter(n => n !== name)
     renderExcluded()
+    renderNotice()
+    updateSaveBar()
 }
 
 async function addExcludedName(name, keepSearch = false) {
@@ -87,14 +90,16 @@ async function addExcludedName(name, keepSearch = false) {
     excludeHint.classList.remove("error")
 
     if (!name) return
-    if (excludedEmote.includes(name)) {
+    const isDuplicate = excludedEmote.some(item =>
+        caseSensitive ? item === name : String(item).toLowerCase() === String(name).toLowerCase()
+    )
+    if (isDuplicate) {
         excludeHint.textContent = "Already excluded..."
         excludeHint.classList.add("error")
         return
     }
 
-    excludedEmote.push(name)
-    await ext.storage.local.set({ excludedEmote })
+    draft.excludedEmote = [...(draft.excludedEmote || []), name]
     if (!keepSearch) {
         excludeInput.value = ""
         excludeSearchResultsEl.replaceChildren()
@@ -104,9 +109,12 @@ async function addExcludedName(name, keepSearch = false) {
     }
 
     renderExcluded()
+    renderNotice()
+    updateSaveBar()
 
     if (!emoteByName.has(name))
-        excludeHint.textContent = `Saved! "${name}" wasn't found in your loaded emotes, double-check its spelling and letter case...`
+        excludeHint.textContent = `Added "${name}" to your draft! It wasn't found in your loaded emotes, double-check its spelling and letter case...`
+    else excludeHint.textContent = `Added "${name}" to your draft!`
 }
 
 excludeInput.addEventListener("input", () => {
@@ -119,7 +127,10 @@ excludeInput.addEventListener("input", () => {
 
 async function runExSearch(query) {
     const res = await ext.runtime.sendMessage({ type: "GET_SUGGESTIONS", query })
-    const sugg = (res && res.suggestions) || []
+    const isExcluded = name => excludedEmote.some(item =>
+        caseSensitive ? item === name : String(item).toLowerCase() === String(name).toLowerCase()
+    )
+    const sugg = ((res && res.suggestions) || []).filter(emote => !isExcluded(emote.name))
 
     excludeSearchResultsEl.replaceChildren()
     sugg.slice(0, 8).forEach(emote => {

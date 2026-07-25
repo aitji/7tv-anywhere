@@ -47,9 +47,10 @@ function renderManageView() {
     const name = set[0].channelName
     const enabled = set.filter(s => s.enabled !== false)
     const pref = draft.channelSettings[currentChannelId] || {}
+    const sumSet = sumEmotes(set)
 
     manageChannelTitle.textContent = name
-    manageChannelSummary.textContent = `${enabled.length}/${set.length} active sets ~${sumEmotes(set)} emotes`
+    manageChannelSummary.textContent = `${enabled.length}/${set.length} active sets · ${sumSet} emote${sumSet == 1 ? '' : 's'}`
     manageChannelStatus.textContent = ""
     alwaysMainToggle.checked = !!pref.alwaysMain
 
@@ -128,9 +129,10 @@ function renderSetCard(set, pref, index, total) {
 
     const sub = document.createElement("div")
     sub.className = "card-sub"
+    const txt = `emote${set.count == 1 ? '' : 's'}`
     sub.textContent = willActive
-        ? `${set.count ?? "?"} emotes · currently active on the channel`
-        : `${set.count ?? "?"} emotes`
+        ? `${set.count ?? "?"} ${txt} · currently active on the channel`
+        : `${set.count ?? "?"} ${txt}`
     card.appendChild(sub)
 
     if (set.preview && set.preview.length) {
@@ -201,7 +203,7 @@ function moveSet(setId, direction) {
     const from = visual.findIndex(set => set.id === setId)
     const to = from + direction
     if (from < 0 || to < 0 || to >= visual.length) return
-    ;[visual[from], visual[to]] = [visual[to], visual[from]]
+        ;[visual[from], visual[to]] = [visual[to], visual[from]]
     const reordered = visual.slice().reverse()
     let index = 0
     draft.customSets = draft.customSets.map(set =>

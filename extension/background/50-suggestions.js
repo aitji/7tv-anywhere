@@ -1,15 +1,17 @@
 async function getSugg(query) {
-    const [emote, { excludedEmote = [], caseSensitive = false }] = await Promise.all([
+    const [emote, { excludedEmote = [], caseSensitive = false, matchPriority = "channel" }] = await Promise.all([
         getEmote(),
-        ext.storage.local.get(["excludedEmote", "caseSensitive"])
+        ext.storage.local.get(["excludedEmote", "caseSensitive", "matchPriority"])
     ])
 
-    const exclude = new Set(excludedEmote)
     const q = norm(query, caseSensitive)
+    const priorityMode = cleanMatchPriority(matchPriority)
+    const exKey = name => caseSensitive ? String(name) : String(name).toLowerCase()
+    const exclude = new Set(excludedEmote.map(exKey))
 
     const match = []
     for (const item of emote) {
-        if (exclude.has(item.name)) continue
+        if (exclude.has(exKey(item.name))) continue
         const score = fuzzy(q, norm(item.name, caseSensitive))
         if (score > 0) match.push({
             ...item,
@@ -18,12 +20,17 @@ async function getSugg(query) {
         })
     }
 
-    match.sort((a, b) =>
-        b.score - a.score
-        || b.caseScore - a.caseScore
-        || (b.priority || 0) - (a.priority || 0)
-        || a.name.localeCompare(b.name)
-    )
+    match.sort((a, b) => {
+        const score = b.score - a.score
+        if (score) return score
+        if (priorityMode === "case")
+            return b.caseScore - a.caseScore
+                || (b.priority || 0) - (a.priority || 0)
+                || a.name.localeCompare(b.name)
+        return (b.priority || 0) - (a.priority || 0)
+            || b.caseScore - a.caseScore
+            || a.name.localeCompare(b.name)
+    })
     return match.slice(0, MAX_SUGGESTIONS)
 }
 

@@ -27,6 +27,8 @@ async function init() {
         emoteSet = [],
         excludedEmote: storedExcluded = [],
         caseSensitive: storedCaseSensitive = false,
+        matchPriority: storedMatchPriority = "channel",
+        renderMode: storedRenderMode = "balanced",
         lastReWarn = null,
         pendingDraft = appState.pendingDraft,
         initStatus = appState.initStatus,
@@ -39,7 +41,7 @@ async function init() {
         siteCfgAt = null
     } = await ext.storage.local.get([
         "enabled", "disabledSites", "enabledUnsupportedSites", "customSets", "channelSettings",
-        "emoteSize", "emoteSet", "excludedEmote", "caseSensitive", "lastReWarn", "pendingDraft",
+        "emoteSize", "emoteSet", "excludedEmote", "caseSensitive", "matchPriority", "renderMode", "lastReWarn", "pendingDraft",
         "initStatus", "emoteLoadStatus", "channelOperation", "autoCheckUpdates",
         "updateCheckIntervalHours", "lastCheck", "siteCfg", "siteCfgAt"
     ])
@@ -51,26 +53,26 @@ async function init() {
     setSwitch(toggleSiteBtn, siteOn)
 
     const migrated = migrateSet(storedSets)
-    saved = { customSets: migrated, channelSettings: storedChannelSettings || {} }
+    saved = fillDraft({
+        customSets: migrated,
+        channelSettings: storedChannelSettings || {},
+        excludedEmote: Array.isArray(storedExcluded) ? storedExcluded : [],
+        emoteSize,
+        caseSensitive: storedCaseSensitive === true,
+        matchPriority: storedMatchPriority,
+        renderMode: storedRenderMode
+    })
     savedSerialized = serializeComparableState(saved)
     draft = validDraft(pendingDraft)
-        ? {
-            customSets: migrateSet(pendingDraft.customSets),
-            channelSettings: pendingDraft.channelSettings || {}
-        }
+        ? fillDraft({ ...pendingDraft, customSets: migrateSet(pendingDraft.customSets) }, saved)
         : cloneState(saved)
     lastPersistedDraft = JSON.stringify(draft)
     channelOperationState = channelOperation || null
 
-    emoteSizeInput.value = emoteSize
-    emoteSizeValue.textContent = `${emoteSize}x`
-
     const loadedEmotes = Array.isArray(emoteSet) ? emoteSet : []
     setCount(loadedEmotes.length)
     setPopupEmote(loadedEmotes)
-    excludedEmote = Array.isArray(storedExcluded) ? storedExcluded : []
-    caseSensitive = storedCaseSensitive === true
-    caseSensitiveInput.checked = caseSensitive
+    syncDraftGlobals()
     siteRuleCount = Array.isArray(storedSiteCfg && storedSiteCfg.siteRules)
         ? storedSiteCfg.siteRules.length
         : verdict.ruleCount
@@ -111,8 +113,11 @@ function renderLastChecked(timestamp) {
 function renderSettingsData() {
     const channelCount = new Set(draft.customSets.map(set => set.channelId)).size
     dataVersionEl.textContent = ext.runtime.getManifest().version
-    dataEmotesEl.textContent = `${emoteByName.size} emotes`
+    dataEmotesEl.textContent = `${emoteByName.size} emote${emoteByName.size == 1 ? '' : 's'}`
     dataChannelsEl.textContent = `${channelCount} channel${channelCount === 1 ? "" : "s"} · ${draft.customSets.length} set${draft.customSets.length === 1 ? "" : "s"}`
+    dataExcludedEl.textContent = `${(draft.excludedEmote || []).length} emote${(draft.excludedEmote || []).length === 1 ? "" : "s"}`
+    dataMatchingEl.textContent = `${draft.caseSensitive ? "case-sensitive" : "ignore case"} · ${cleanMatchPriority(draft.matchPriority) === "case" ? "case first" : "channel first"}`
+    dataPerformanceEl.textContent = cleanRenderMode(draft.renderMode)
     dataDraftEl.textContent = isDirty() ? "Unsaved changes" : "No pending changes"
 
     const cached = siteRulesCachedAt
@@ -154,24 +159,31 @@ function queueStorageStateSync() {
     clearTimeout(storageSyncTimer)
     storageSyncTimer = setTimeout(async () => {
         const state = await ext.storage.local.get([
-            "customSets", "channelSettings", "pendingDraft"
+            "customSets", "channelSettings", "excludedEmote", "emoteSize",
+            "caseSensitive", "matchPriority", "renderMode", "pendingDraft"
         ])
-        saved = {
+        saved = fillDraft({
             customSets: migrateSet(state.customSets || []),
-            channelSettings: state.channelSettings || {}
-        }
+            channelSettings: state.channelSettings || {},
+            excludedEmote: state.excludedEmote || [],
+            emoteSize: state.emoteSize,
+            caseSensitive: state.caseSensitive === true,
+            matchPriority: state.matchPriority,
+            renderMode: state.renderMode
+        })
         savedSerialized = serializeComparableState(saved)
         draft = validDraft(state.pendingDraft)
-            ? {
-                customSets: migrateSet(state.pendingDraft.customSets),
-                channelSettings: state.pendingDraft.channelSettings || {}
-            }
+            ? fillDraft({ ...state.pendingDraft, customSets: migrateSet(state.pendingDraft.customSets) }, saved)
             : cloneState(saved)
         lastPersistedDraft = JSON.stringify(draft)
+        syncDraftGlobals()
+
         if (currentChannelId && !draft.customSets.some(s => s.channelId === currentChannelId))
             closeManageView()
         else if (currentChannelId) renderManageView()
         renderHome()
+        renderExcluded()
+        renderNotice()
         renderSettingsData()
         updateSaveBar()
     }, 0)
@@ -180,8 +192,12 @@ function queueStorageStateSync() {
 ext.storage.onChanged.addListener((changes, area) => {
     if (area !== "local") return
     queueStorageUsageRefresh()
-    if (changes.customSets || changes.channelSettings || changes.pendingDraft)
-        queueStorageStateSync()
+    if (
+        changes.customSets || changes.channelSettings
+        || changes.excludedEmote || changes.emoteSize || changes.caseSensitive
+        || changes.matchPriority || changes.renderMode
+        || changes.pendingDraft
+    ) queueStorageStateSync()
 
     if (changes.initStatus || changes.emoteLoadStatus || changes.channelOperation) {
         if (changes.channelOperation)

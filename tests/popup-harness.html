@@ -30,6 +30,9 @@
                 { name: "LETSGO", id: "go", url: "/extension/icons/icon-16.png" }
             ],
             excludedEmote: ["0", "1"],
+            caseSensitive: false,
+            matchPriority: "channel",
+            renderMode: "balanced",
             initStatus: { phase: "ready", message: "Ready.", updatedAt: Date.now() },
             autoCheckUpdates: true,
             updateCheckIntervalHours: 168
@@ -49,6 +52,10 @@
                     }
                 ],
                 channelSettings: structuredClone(storageData.channelSettings),
+                excludedEmote: structuredClone(storageData.excludedEmote),
+                caseSensitive: storageData.caseSensitive,
+                matchPriority: storageData.matchPriority,
+                renderMode: storageData.renderMode,
                 updatedAt: Date.now()
             }
             storageData.channelOperation = {
@@ -105,7 +112,11 @@
                     if (message.type === "SAVE_DRAFT") {
                         await setStorage({
                             customSets: message.draft.customSets,
-                            channelSettings: message.draft.channelSettings
+                            channelSettings: message.draft.channelSettings,
+                            excludedEmote: message.draft.excludedEmote,
+                            caseSensitive: message.draft.caseSensitive,
+                            matchPriority: message.draft.matchPriority,
+                            renderMode: message.draft.renderMode
                         })
                         await removeStorage("pendingDraft")
                         return { success: true, emotes: storageData.emoteSet }
@@ -128,7 +139,11 @@
                         await new Promise(resolve => setTimeout(resolve, 150))
                         const state = storageData.pendingDraft || {
                             customSets: structuredClone(storageData.customSets),
-                            channelSettings: structuredClone(storageData.channelSettings)
+                            channelSettings: structuredClone(storageData.channelSettings),
+                            excludedEmote: structuredClone(storageData.excludedEmote),
+                            caseSensitive: storageData.caseSensitive,
+                            matchPriority: storageData.matchPriority,
+                            renderMode: storageData.renderMode
                         }
                         state.customSets.push({
                             id: "set-two",

@@ -65,9 +65,10 @@ function renderHome() {
     const C = groupByChannel(draft.customSets).reverse()
     const activeC = C.filter(c => c.sets.some(s => s.enabled !== false))
 
+    const sumDraft = sumEmotes(draft.customSets)
     channelsEmptyEl.style.display = C.length ? "none" : "block"
     channelsSummaryEl.textContent = C.length
-        ? `${activeC.length}/${C.length} active ~${sumEmotes(draft.customSets)} emotes`
+        ? `${activeC.length}/${C.length} active · ${sumDraft} emote${sumDraft == 1 ? '' : 's'}`
         : ""
 
     channelCardsEl.replaceChildren()
@@ -138,7 +139,7 @@ function renderCCard(channel, index, total) {
     const removeBtn = document.createElement("button")
     removeBtn.className = "card-icon-btn"
     removeBtn.appendChild(makeIcon("remove"))
-    removeBtn.title = "Remove this channel and all of its sets"
+    removeBtn.title = "Remove this channel and all of its set(s)"
     removeBtn.addEventListener("click", () => {
         draft.customSets = draft.customSets.filter(s => s.channelId !== channel.channelId)
         delete draft.channelSettings[channel.channelId]
@@ -148,11 +149,12 @@ function renderCCard(channel, index, total) {
     top.appendChild(removeBtn)
     card.appendChild(top)
 
+    const sumSet = sumEmotes(channel.sets)
     const sub = document.createElement("div")
     sub.className = "card-sub"
     sub.textContent = alwayMain
-        ? `Always following the channel's current main set · ${sumEmotes(channel.sets)}`
-        : `${enabledSet.length}/${channel.sets.length} active sets · ${sumEmotes(channel.sets)} emotes`
+        ? `Always following the channel's current main set · ${sumSet}`
+        : `${enabledSet.length}/${channel.sets.length} active set${enabledSet.length == 1 ? '' : 's'} · ${sumSet} emote${sumSet == 1 ? '' : 's'}`
     card.appendChild(sub)
 
     const previewEmote = dedupePreview(enabledSet.flatMap(s => s.preview || []))
@@ -181,7 +183,7 @@ function renderCCard(channel, index, total) {
     const action = document.createElement("div")
     action.className = "card-actions"
 
-    const quickToggle = makeSwitch(channelOn, { title: channelOn ? "Disable all sets for this channel" : "Re-enable this channel's previous sets" })
+    const quickToggle = makeSwitch(channelOn, { title: channelOn ? "Disable all sets for this channel" : "Re-enable this channel's previous set(s)" })
     quickToggle.addEventListener("click", () => {
         const pref = draft.channelSettings[channel.channelId] || {}
 
@@ -278,7 +280,7 @@ function moveChannel(channelId, direction) {
     const from = visual.findIndex(c => c.channelId === channelId)
     const to = from + direction
     if (from < 0 || to < 0 || to >= visual.length) return
-    ;[visual[from], visual[to]] = [visual[to], visual[from]]
+        ;[visual[from], visual[to]] = [visual[to], visual[from]]
     draft.customSets = visual.slice().reverse().flatMap(channel => channel.sets)
     renderHome()
     updateSaveBar()

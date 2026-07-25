@@ -117,12 +117,19 @@ Object.assign(storageData, {
     emoteSetKey: JSON.stringify([2, "global"]),
     customSets: [],
     excludedEmote: [],
-    caseSensitive: false
+    caseSensitive: false,
+    matchPriority: "channel"
 })
 assert.equal((await context.__siteRuleTest.getSugg("letsgo"))[0]?.name, "LETSGO")
 const clap = await context.__siteRuleTest.getSugg("clap")
 assert.deepEqual(
     Array.from(clap.slice(0, 3), item => item.name),
+    ["CLAP", "cLAP", "Clap"]
+)
+storageData.matchPriority = "case"
+const caseFirstClap = await context.__siteRuleTest.getSugg("clap")
+assert.deepEqual(
+    Array.from(caseFirstClap.slice(0, 3), item => item.name),
     ["Clap", "cLAP", "CLAP"]
 )
 storageData.emoteSet.push({
@@ -132,6 +139,9 @@ storageData.emoteSet.push({
     priority: 10
 })
 assert.equal((await context.__siteRuleTest.getSugg("clap"))[0]?.name, "cLap")
+storageData.excludedEmote = ["clap"]
+assert.equal((await context.__siteRuleTest.getSugg("CLAP")).length, 0)
+storageData.excludedEmote = []
 storageData.caseSensitive = true
 assert.equal((await context.__siteRuleTest.getSugg("letsgo")).length, 0)
 assert.equal((await context.__siteRuleTest.getSugg("LETSGO"))[0]?.name, "LETSGO")

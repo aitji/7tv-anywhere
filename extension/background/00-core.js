@@ -13,6 +13,10 @@ const MAX_SUGGESTIONS = 25
 const MAIN_SET_REFRESH_MS = 24 * 60 * 60 * 1000
 const DEFAULT_UPDATE_CHECK_INTERVAL_HOURS = 7 * 24
 const FETCH_TIMEOUT_MS = 12 * 1000
+const DEFAULT_EXCLUDED_EMOTE = Object.freeze(["1", "0", "TO"])
+const DEFAULT_MATCH_PRIORITY = "channel"
+const DEFAULT_RENDER_MODE = "balanced"
+const EMOTE_FETCH_CONCURRENCY = 4
 
 const MANIFEST_URL = "https://cdn.jsdelivr.net/gh/aitji/7tv-anywhere@main/extension/manifest.json"
 const CFG_URL = "https://cdn.jsdelivr.net/gh/aitji/7tv-anywhere@main/sites.jsonc"
@@ -69,6 +73,25 @@ const validDraft = (value) => value
     && value.channelSettings
     && typeof value.channelSettings === "object"
     && !Array.isArray(value.channelSettings)
+const cleanMatchPriority = (value) => value === "case" ? "case" : DEFAULT_MATCH_PRIORITY
+const cleanRenderMode = (value) => ["light", "balanced", "full"].includes(value) ? value : DEFAULT_RENDER_MODE
+function fillDraft(value, fallback = {}) {
+    const src = validDraft(value) ? value : {}
+    return {
+        customSets: cloneState(src.customSets || fallback.customSets || []),
+        channelSettings: cloneState(src.channelSettings || fallback.channelSettings || {}),
+        excludedEmote: Array.from(new Set(
+            (Array.isArray(src.excludedEmote) ? src.excludedEmote : fallback.excludedEmote || [])
+                .filter(name => typeof name === "string")
+        )),
+        emoteSize: clamp(src.emoteSize || fallback.emoteSize),
+        caseSensitive: src.caseSensitive === undefined
+            ? fallback.caseSensitive === true
+            : src.caseSensitive === true,
+        matchPriority: cleanMatchPriority(src.matchPriority || fallback.matchPriority),
+        renderMode: cleanRenderMode(src.renderMode || fallback.renderMode)
+    }
+}
 const errorText = (value, fallback = "Something went wrong") => {
     const raw = value instanceof Error ? value.message : String(value || fallback)
     const text = raw.replace(/^Error:\s*/i, "").replace(/[.!?…\s]+$/, "").trim()
@@ -102,13 +125,15 @@ function initialize() {
 async function doInit() {
     const state = await ext.storage.local.get([
         "enabled", "customSets", "channelSettings",
-        "excludedEmote", "caseSensitive", "initStatus", "isInitDone"
+        "excludedEmote", "caseSensitive", "matchPriority", "renderMode", "initStatus", "isInitDone"
     ])
 
     const defaults = {}
     if (state.enabled === undefined) defaults.enabled = true
-    if (state.excludedEmote === undefined) defaults.excludedEmote = ["1", "0", "TO"]
+    if (state.excludedEmote === undefined) defaults.excludedEmote = [...DEFAULT_EXCLUDED_EMOTE]
     if (state.caseSensitive === undefined) defaults.caseSensitive = false
+    if (state.matchPriority === undefined) defaults.matchPriority = DEFAULT_MATCH_PRIORITY
+    if (state.renderMode === undefined) defaults.renderMode = DEFAULT_RENDER_MODE
 
     const retrySetup = state.isInitDone === false
         && state.initStatus

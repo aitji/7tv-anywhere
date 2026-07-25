@@ -7,12 +7,22 @@
         "IFRAME", "OBJECT", "EMBED", "CODE", "PRE", "SVG"
     ]))
 
-    const MAX_NODE_LENGTH = 20000
     const WORD_RE = /[A-Za-z0-9_]+/g
+    const MODE = Object.freeze({
+        light: { maxNodeLength: 4000, chunkSize: 80, observeShadow: false, initialScan: false },
+        balanced: { maxNodeLength: 12000, chunkSize: 160, observeShadow: true, initialScan: true },
+        full: { maxNodeLength: 20000, chunkSize: 240, observeShadow: true, initialScan: true }
+    })
 
     let emoteMap = new Map()
     let emoteSize = 2
     let caseSensitive = false
+    let matchPriority = "channel"
+    let renderMode = "balanced"
+    let renderCfg = MODE.balanced
+    let minNameLength = Infinity
+    let maxNameLength = 0
+    let firstChar = new Set()
     let isActive = false
     let observer = null
     let observedRoots = new WeakSet()
@@ -43,7 +53,8 @@
         if (area !== "local") return
         if ("enabled" in changes || "disabledSites" in changes || "enabledUnsupportedSites" in changes) await evlActive()
         if (isActive && ("excludedEmote" in changes || "emoteSet" in changes
-            || "emoteSize" in changes || "caseSensitive" in changes)) {
+            || "emoteSize" in changes || "caseSensitive" in changes || "matchPriority" in changes
+            || "renderMode" in changes)) {
             await refreshEmote()
         }
     }
@@ -122,7 +133,7 @@
         try {
             result = await Promise.all([
                 ext.runtime.sendMessage({ type: "GET_EMOTES" }),
-                ext.storage.local.get(["excludedEmote", "emoteSize", "caseSensitive"])
+                ext.storage.local.get(["excludedEmote", "emoteSize", "caseSensitive", "matchPriority", "renderMode"])
             ])
         } catch { return false }
         const [{
@@ -130,17 +141,27 @@
         } = {}, {
             excludedEmote = [],
             emoteSize: size,
-            caseSensitive: matchCase = false
+            caseSensitive: matchCase = false,
+            matchPriority: priorityMode = "channel",
+            renderMode: mode = "balanced"
         } = {}] = result
 
         const nextSize = size || 2
         const nextCase = matchCase === true
+        const nextPriority = priorityMode === "case" ? "case" : "channel"
+        const nextMode = cleanRenderMode(mode)
         const key = name => nextCase ? name : String(name).toLowerCase()
         const excluded = new Set(excludedEmote.map(key))
         const map = new Map()
+        let min = Infinity
+        let max = 0
+        const first = new Set()
         for (const emote of emotes) {
             const name = key(emote.name)
             if (excluded.has(name)) continue
+            min = Math.min(min, name.length)
+            max = Math.max(max, name.length)
+            first.add(name[0])
             if (nextCase) map.set(name, [emote])
             else {
                 const variant = map.get(name) || []
@@ -148,13 +169,32 @@
                 map.set(name, variant)
             }
         }
-        return { map, size: nextSize, caseSensitive: nextCase }
+        return {
+            map,
+            size: nextSize,
+            caseSensitive: nextCase,
+            matchPriority: nextPriority,
+            renderMode: nextMode,
+            minNameLength: Number.isFinite(min) ? min : Infinity,
+            maxNameLength: max,
+            firstChar: first
+        }
     }
 
     function applyEmote(loaded) {
         emoteMap = loaded.map
         emoteSize = loaded.size
         caseSensitive = loaded.caseSensitive
+        matchPriority = loaded.matchPriority
+        renderMode = loaded.renderMode
+        renderCfg = MODE[renderMode]
+        minNameLength = loaded.minNameLength
+        maxNameLength = loaded.maxNameLength
+        firstChar = loaded.firstChar
+    }
+
+    function cleanRenderMode(value) {
+        return MODE[value] ? value : "balanced"
     }
 
     function startObserving() {
@@ -162,8 +202,8 @@
         processRev++
         observer = new MutationObserver(handleMutations)
         observeRoot(document.body)
-        observeOpenShadows(document.body)
-        schProing(document.body)
+        if (renderCfg.observeShadow) observeOpenShadows(document.body)
+        if (renderCfg.initialScan) schProing(document.body)
     }
 
     function observeRoot(root) {
@@ -202,7 +242,7 @@
             if (mutation.type === "childList") mutation.addedNodes.forEach(node => {
                 if (node.nodeType !== Node.ELEMENT_NODE && node.nodeType !== Node.TEXT_NODE) return
                 if (ownNode.has(node)) return
-                if (node.nodeType === Node.ELEMENT_NODE) observeOpenShadows(node)
+                if (node.nodeType === Node.ELEMENT_NODE && renderCfg.observeShadow) observeOpenShadows(node)
                 schProing(node)
             })
 
@@ -299,7 +339,7 @@
                 proTextNode(node[index])
                 index++
                 sinceYield++
-                if (sinceYield >= 200) break
+                if (sinceYield >= renderCfg.chunkSize) break
                 if (hasDeadline && deadline.timeRemaining() <= 0) break
             }
 
@@ -317,7 +357,7 @@
         const parent = node.parentElement
         if (!parent) return NodeFilter.FILTER_REJECT
         if (shouldSkipElement(parent)) return NodeFilter.FILTER_REJECT
-        if (!node.nodeValue || node.nodeValue.length > MAX_NODE_LENGTH) return NodeFilter.FILTER_REJECT
+        if (!node.nodeValue || node.nodeValue.length > renderCfg.maxNodeLength) return NodeFilter.FILTER_REJECT
 
         return NodeFilter.FILTER_ACCEPT
     }
@@ -328,6 +368,7 @@
 
         const text = textNode.nodeValue
         if (!text || text.length < 2) return
+        if (text.length < minNameLength) return
 
         const frag = buildFragment(text)
         if (!frag) return
@@ -343,6 +384,7 @@
         const frag = document.createDocumentFragment()
 
         while ((match = WORD_RE.exec(text)) !== null) {
+            if (!canMatchWord(match[0])) continue
             const emote = pickEmote(match[0])
             if (!emote) continue
 
@@ -365,6 +407,12 @@
         return frag
     }
 
+    function canMatchWord(word) {
+        if (word.length < minNameLength || word.length > maxNameLength) return false
+        const first = caseSensitive ? word[0] : word[0].toLowerCase()
+        return firstChar.has(first)
+    }
+
     function pickEmote(input) {
         const key = caseSensitive ? input : input.toLowerCase()
         const variant = emoteMap.get(key)
@@ -376,8 +424,12 @@
         for (let i = 1; i < variant.length; i++) {
             const item = variant[i]
             const score = caseFit(input, item.name)
-            if (score > bestCase
-                || (score === bestCase && (item.priority || 0) > (best.priority || 0))) {
+            const itemPriority = item.priority || 0
+            const bestPriority = best.priority || 0
+            const better = matchPriority === "case"
+                ? score > bestCase || (score === bestCase && itemPriority > bestPriority)
+                : itemPriority > bestPriority || (itemPriority === bestPriority && score > bestCase)
+            if (better) {
                 best = item
                 bestCase = score
             }

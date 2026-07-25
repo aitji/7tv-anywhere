@@ -1,10 +1,32 @@
 caseSensitiveInput.addEventListener("change", async () => {
-    caseSensitive = caseSensitiveInput.checked
-    await ext.storage.local.set({ caseSensitive })
+    draft.caseSensitive = caseSensitiveInput.checked
+    syncDraftGlobals()
     renderNotice()
     caseSensitiveStatusEl.textContent = caseSensitive
         ? "Exact letter case enabled!"
         : "Emote names now ignore letter case!"
+    updateSaveBar()
+})
+
+matchPrioritySelect.addEventListener("change", () => {
+    draft.matchPriority = cleanMatchPriority(matchPrioritySelect.value)
+    syncDraftGlobals()
+    renderNotice()
+    matchPriorityStatusEl.textContent = matchPriority === "case"
+        ? "Closest letter case will win first!"
+        : "Channel order will win first!"
+    updateSaveBar()
+})
+
+renderModeSelect.addEventListener("change", () => {
+    draft.renderMode = cleanRenderMode(renderModeSelect.value)
+    syncDraftGlobals()
+    renderModeStatusEl.textContent = renderMode === "light"
+        ? "Lighter page rendering is enabled!"
+        : renderMode === "full"
+            ? "Full page scanning is enabled!"
+            : "Balanced page rendering is enabled!"
+    updateSaveBar()
 })
 
 autoCheckUpdatesInput.addEventListener("change", async () => {
@@ -46,8 +68,10 @@ checkUpdateNowBtn.addEventListener("click", async () => {
 })
 
 const backupKeys = [
-    "enabled", "disabledSites", "enabledUnsupportedSites", "customSets", "channelSettings",
-    "emoteSize", "excludedEmote", "caseSensitive", "autoCheckUpdates", "updateCheckIntervalHours"
+    "enabled", "disabledSites", "enabledUnsupportedSites",
+    "customSets", "channelSettings", "emoteSize",
+    "excludedEmote", "caseSensitive", "matchPriority",
+    "renderMode", "autoCheckUpdates", "updateCheckIntervalHours"
 ]
 
 exportSettingsBtn.addEventListener("click", async () => {
@@ -97,15 +121,21 @@ importSettingsFile.addEventListener("change", async () => {
                 await ext.storage.local.remove("pendingDraft")
                 settingsStatusEl.classList.remove("error")
                 settingsStatusEl.textContent = "Imported! Reloading emotes..."
+                saved = fillDraft(imported)
+                draft = cloneState(saved)
+                savedSerialized = serializeComparableState(saved)
+                lastPersistedDraft = JSON.stringify(draft)
+                syncDraftGlobals()
                 setSwitch(toggleEnabledBtn, imported.enabled !== false)
                 emoteSizeInput.value = imported.emoteSize || 2
                 emoteSizeValue.textContent = `${emoteSizeInput.value}x`
-                excludedEmote = imported.excludedEmote || []
-                caseSensitive = imported.caseSensitive === true
-                caseSensitiveInput.checked = caseSensitive
                 autoCheckUpdatesInput.checked = imported.autoCheckUpdates !== false
                 updateCheckIntervalSelect.value = String(imported.updateCheckIntervalHours || 168)
                 await triggerReload()
+                renderHome()
+                renderExcluded()
+                renderSettingsData()
+                updateSaveBar()
                 settingsStatusEl.textContent = "Settings imported!"
             }
         })
@@ -148,6 +178,8 @@ function validateImportedSettings(parsed) {
         emoteSize,
         excludedEmote: Array.from(new Set(settings.excludedEmote)),
         caseSensitive: settings.caseSensitive === true,
+        matchPriority: cleanMatchPriority(settings.matchPriority),
+        renderMode: cleanRenderMode(settings.renderMode),
         autoCheckUpdates: settings.autoCheckUpdates !== false,
         updateCheckIntervalHours: interval,
         isInitDone: true

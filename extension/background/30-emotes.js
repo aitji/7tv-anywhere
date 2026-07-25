@@ -77,7 +77,7 @@ async function loadEmote() {
     const enabledSet = customSet.filter(s => s.enabled !== false)
     const id = ["global", ...enabledSet.map(s => s.id)]
 
-    const task = await Promise.allSettled(id.map(setId => getSetData(setId)))
+    const task = await settleLimited(id, EMOTE_FETCH_CONCURRENCY, setId => getSetData(setId))
 
     const byName = new Map()
     let anyOk = false
@@ -145,4 +145,21 @@ async function loadEmote() {
 function labelSet(set) {
     if (!set) return null
     return set.setName ? `${set.channelName || ""} \u2013 ${set.setName}`.replace(/^ \u2013 /, "") : set.label
+}
+
+async function settleLimited(items, limit, worker) {
+    const out = Array(items.length)
+    let next = 0
+    const count = Math.max(1, Math.min(limit || 1, items.length || 1))
+    await Promise.all(Array.from({ length: count }, async () => {
+        while (next < items.length) {
+            const index = next++
+            try {
+                out[index] = { status: "fulfilled", value: await worker(items[index], index) }
+            } catch (reason) {
+                out[index] = { status: "rejected", reason }
+            }
+        }
+    }))
+    return out
 }

@@ -21,30 +21,41 @@ async function reStaleOp() {
 }
 
 async function getDraft() {
-    const { pendingDraft, customSets = [], channelSettings = {} } = await ext.storage.local.get([
-        "pendingDraft", "customSets", "channelSettings"
+    const saved = await ext.storage.local.get([
+        "pendingDraft", "customSets", "channelSettings",
+        "excludedEmote", "emoteSize", "caseSensitive",
+        "matchPriority", "renderMode"
     ])
-    const src = validDraft(pendingDraft)
-        ? pendingDraft
-        : { customSets, channelSettings }
-    return {
-        customSets: cloneState(src.customSets),
-        channelSettings: cloneState(src.channelSettings)
-    }
+    return fillDraft(saved.pendingDraft, saved)
 }
 
 async function saveDraft(input) {
     const done = startBadgeWork("save")
     try {
         return await mutateDraft(async () => {
-            const state = validDraft(input) ? input : await getDraft()
+            const savedBefore = await ext.storage.local.get([
+                "customSets", "emoteSet", "excludedEmote",
+                "emoteSize", "caseSensitive", "matchPriority",
+                "renderMode", "lastReWarn"
+            ])
+            const state = fillDraft(validDraft(input) ? input : await getDraft(), savedBefore)
             if (!validDraft(state)) throw new Error("The saved draft is invalid...")
             await ext.storage.local.set({
                 customSets: cloneState(state.customSets),
-                channelSettings: cloneState(state.channelSettings)
+                channelSettings: cloneState(state.channelSettings),
+                excludedEmote: cloneState(state.excludedEmote),
+                emoteSize: clamp(state.emoteSize),
+                caseSensitive: state.caseSensitive === true,
+                matchPriority: cleanMatchPriority(state.matchPriority),
+                renderMode: cleanRenderMode(state.renderMode)
             })
             await ext.storage.local.remove("pendingDraft")
-            const result = await reloadEmote()
+            const beforeKey = cacheKey(savedBefore.customSets || [])
+            const afterKey = cacheKey(state.customSets || [])
+            const sameEmoteSource = beforeKey === afterKey && clamp(savedBefore.emoteSize) === clamp(state.emoteSize)
+            const result = sameEmoteSource && Array.isArray(savedBefore.emoteSet)
+                ? { emotes: savedBefore.emoteSet, warning: savedBefore.lastReWarn || null }
+                : await reloadEmote()
             return { success: true, emotes: result.emotes, warning: result.warning }
         })
     } finally { done() }

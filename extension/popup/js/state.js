@@ -12,7 +12,7 @@ const noticeText = $("notice-text")
 
 const tabBtns = document.querySelectorAll(".tab-btn")
 const panelEmotes = $("panel-emotes")
-const panelExcluded = $("panel-excluded")
+const panelBrowser = $("panel-browser")
 const panelSettings = $("panel-settings")
 
 const viewHome = $("view-home")
@@ -56,12 +56,27 @@ const confirmBody = $("confirm-body")
 const confirmActionBtn = $("confirm-action")
 const confirmCancelBtn = $("confirm-cancel")
 
-const excludeInput = $("exclude-input")
-const excludeAddBtn = $("exclude-add")
-const excludeHint = $("exclude-hint")
-const excludeSearchResultsEl = $("exclude-search-results")
-const excludedListEl = $("excluded-list")
-const excludedEmptyEl = $("excluded-empty")
+const browserModeEmotesBtn = $("browser-mode-emotes")
+const browserModeChannelsBtn = $("browser-mode-channels")
+const browserIntroEl = $("browser-intro")
+const browserSearchInput = $("browser-search")
+const browserEmoteFiltersEl = $("browser-emote-filters")
+const browserChannelFilter = $("browser-channel-filter")
+const browserSetFilter = $("browser-set-filter")
+const browserBlockedOnlyInput = $("browser-blocked-only")
+const browserSummaryEl = $("browser-summary")
+const browserSetPreviewEl = $("browser-set-preview")
+const browserSetPreviewTitleEl = $("browser-set-preview-title")
+const browserSetPreviewCopyEl = $("browser-set-preview-copy")
+const browserSetPreviewActionBtn = $("browser-set-preview-action")
+const browserListEl = $("browser-list")
+const browserEmptyEl = $("browser-empty")
+const browserSetOverlay = $("browser-set-overlay")
+const browserSetOverlayChannelEl = $("browser-set-overlay-channel")
+const browserSetOverlayWarningEl = $("browser-set-overlay-warning")
+const browserSetOverlayListEl = $("browser-set-overlay-list")
+const browserSetOverlayApplyBtn = $("browser-set-overlay-apply")
+const browserSetOverlayDiscardBtn = $("browser-set-overlay-discard")
 
 const autoCheckUpdatesInput = $("auto-check-updates")
 const caseSensitiveInput = $("case-sensitive")
@@ -70,15 +85,17 @@ const matchPrioritySelect = $("match-priority")
 const matchPriorityStatusEl = $("match-priority-status")
 const renderModeSelect = $("render-mode")
 const renderModeStatusEl = $("render-mode-status")
+const siteRenderModeSelect = $("site-render-mode")
+const siteRenderModeStatusEl = $("site-render-mode-status")
 const updateCheckIntervalSelect = $("update-check-interval")
 const updateLastCheckedEl = $("update-last-checked")
 const checkUpdateNowBtn = $("check-update-now")
 const updateCheckStatusEl = $("update-check-status")
 const exportSettingsBtn = $("export-settings")
 const importSettingsBtn = $("import-settings")
-const importSettingsFile = $("import-settings-file")
 const settingsStatusEl = $("settings-status")
 const refreshSiteRulesBtn = $("refresh-site-rules")
+const forceReinitializeBtn = $("force-reinitialize")
 const siteRulesSummaryEl = $("site-rules-summary")
 const siteRulesStatusEl = $("site-rules-status")
 const dataVersionEl = $("data-version")
@@ -99,6 +116,8 @@ let siteRuleCount = 0
 let siteRulesCachedAt = null
 let draft = { customSets: [], channelSettings: {} }
 let saved = { customSets: [], channelSettings: {} }
+
+const draftChannelSets = channelId => draft.customSets.filter(set => set.channelId === channelId)
 let savedSerialized = JSON.stringify({
     caseSensitive: false,
     channelSettings: {},
@@ -124,11 +143,68 @@ let emoteByLowerName = new Map()
 let caseSensitive = false
 let matchPriority = "channel"
 let renderMode = "balanced"
-let excludeSearchTimer = null
+let siteRenderModes = {}
+let loadedEmoteList = []
+let browserMode = "channels"
+let browserPreviewBySet = new Map()
+let browserPreviewLoading = new Set()
+let browserPreviewError = new Map()
+let browserSetSelection = null
+let exclusionMatcher = () => false
 
 const cleanMatchPriority = (value) => value === "case" ? "case" : "channel"
 const cleanRenderMode = (value) => ["light", "balanced", "full"].includes(value) ? value : "balanced"
 const cleanEmoteSize = (value) => [1, 2, 3, 4].includes(Number(value)) ? Number(value) : 2
+function cleanExcludedEmote(value) {
+    if (!Array.isArray(value)) return []
+    const out = []
+    const seen = new Set()
+    for (const item of value) {
+        const name = typeof item === "string"
+            ? item.trim()
+            : item && typeof item.name === "string"
+                ? item.name.trim()
+                : ""
+        if (!name) continue
+        const channelId = item && typeof item === "object" && typeof item.channelId === "string"
+            ? item.channelId.trim()
+            : ""
+        const key = `${channelId || "*"}\0${name}`
+        if (seen.has(key)) continue
+        seen.add(key)
+        out.push(channelId ? { name, channelId } : name)
+    }
+    return out
+}
+const emoteSourceId = emote => String(
+    emote && emote.channelId
+        ? emote.channelId
+        : emote && emote.channelName
+            ? `legacy:${emote.channelName}`
+            : "global"
+)
+const sameEmoteName = (left, right, matchCase = false) => matchCase
+    ? String(left) === String(right)
+    : String(left).toLowerCase() === String(right).toLowerCase()
+function makeExclusionMatcher(rules, matchCase = false) {
+    const global = new Set()
+    const bySource = new Set()
+    for (const item of cleanExcludedEmote(rules)) {
+        const name = typeof item === "string" ? item : item.name
+        const key = matchCase ? name : name.toLowerCase()
+        if (typeof item === "string") global.add(key)
+        else bySource.add(`${item.channelId}\0${key}`)
+    }
+    return emote => {
+        const name = String(emote && emote.name || "")
+        const key = matchCase ? name : name.toLowerCase()
+        return global.has(key) || bySource.has(`${emoteSourceId(emote)}\0${key}`)
+    }
+}
+function isEmoteExcluded(emote, rules = excludedEmote, matchCase = caseSensitive) {
+    if (rules === excludedEmote && matchCase === caseSensitive) return exclusionMatcher(emote)
+    return makeExclusionMatcher(rules, matchCase)(emote)
+}
 function fillDraft(value, fallback = {}) {
     const src = value && Array.isArray(value.customSets) && value.channelSettings
         && typeof value.channelSettings === "object" && !Array.isArray(value.channelSettings)
@@ -137,10 +213,9 @@ function fillDraft(value, fallback = {}) {
     return {
         customSets: cloneState(src.customSets || fallback.customSets || []),
         channelSettings: cloneState(src.channelSettings || fallback.channelSettings || {}),
-        excludedEmote: Array.from(new Set(
-            (Array.isArray(src.excludedEmote) ? src.excludedEmote : fallback.excludedEmote || [])
-                .filter(name => typeof name === "string")
-        )),
+        excludedEmote: cleanExcludedEmote(
+            Array.isArray(src.excludedEmote) ? src.excludedEmote : fallback.excludedEmote || []
+        ),
         emoteSize: cleanEmoteSize(src.emoteSize || fallback.emoteSize),
         caseSensitive: src.caseSensitive === undefined
             ? fallback.caseSensitive === true
@@ -151,8 +226,10 @@ function fillDraft(value, fallback = {}) {
 }
 
 function syncDraftGlobals() {
-    excludedEmote = Array.isArray(draft.excludedEmote) ? draft.excludedEmote : []
+    excludedEmote = cleanExcludedEmote(draft.excludedEmote)
+    draft.excludedEmote = excludedEmote
     caseSensitive = draft.caseSensitive === true
+    exclusionMatcher = makeExclusionMatcher(excludedEmote, caseSensitive)
     matchPriority = cleanMatchPriority(draft.matchPriority)
     renderMode = cleanRenderMode(draft.renderMode)
     emoteSizeInput.value = cleanEmoteSize(draft.emoteSize)
@@ -163,34 +240,47 @@ function syncDraftGlobals() {
 }
 
 function setPopupEmote(emote) {
-    emoteByName = new Map(emote.map(item => [item.name, item]))
+    loadedEmoteList = (Array.isArray(emote) ? emote : []).map(item => {
+        if (item && item.channelId) return item
+        const channelName = item && item.channelName ? item.channelName : "Global 7TV"
+        const source = item && item.channelName
+            ? draft.customSets.find(set => set.channelName === item.channelName)
+            : null
+        return {
+            ...item,
+            channelId: source ? source.channelId : item && item.channelName ? `legacy:${item.channelName}` : "global",
+            channelName,
+            setId: item && item.setId || source && source.id || "global",
+            setName: item && item.setName || source && source.setName || channelName
+        }
+    })
+    emoteByName = new Map()
     emoteByLowerName = new Map()
-    for (const item of emote) {
-        const name = item.name.toLowerCase()
+    for (const item of loadedEmoteList) {
+        emoteByName.set(`${emoteSourceId(item)}\0${item.name}`, item)
+        const name = String(item.name).toLowerCase()
         const variant = emoteByLowerName.get(name) || []
         variant.push(item)
         emoteByLowerName.set(name, variant)
     }
+    if (popupReady && typeof renderEmoteBrowser === "function") renderEmoteBrowser(true)
 }
 
 function findPopupEmote(name) {
-    const isExcluded = excludedEmote.some(item =>
-        caseSensitive ? item === name : String(item).toLowerCase() === String(name).toLowerCase()
+    const variants = emoteByLowerName.get(String(name).toLowerCase()) || []
+    const variant = variants.filter(item =>
+        (!caseSensitive || item.name === name) && !isEmoteExcluded(item)
     )
-    if (isExcluded) return null
-    if (caseSensitive) return emoteByName.get(name)
-    const variant = emoteByLowerName.get(String(name).toLowerCase())
-    if (!variant || !variant.length) return null
+    if (!variant.length) return null
     return variant.reduce((best, item) => {
         const score = caseFit(name, item.name)
         const bestScore = caseFit(name, best.name)
         const itemPriority = item.priority || 0
         const bestPriority = best.priority || 0
-        return matchPriority === "case"
-            ? (score > bestScore || (score === bestScore && itemPriority > bestPriority))
-            : (itemPriority > bestPriority || (itemPriority === bestPriority && score > bestScore))
-            ? item
-            : best
+        const better = matchPriority === "case"
+            ? score > bestScore || (score === bestScore && itemPriority > bestPriority)
+            : itemPriority > bestPriority || (itemPriority === bestPriority && score > bestScore)
+        return better ? item : best
     })
 }
 

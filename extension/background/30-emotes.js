@@ -1,4 +1,31 @@
+const EMOTE_STATE_KEYS = Object.freeze([
+    "emoteSet", "getEmoteAt", "emoteSetSize", "emoteSize",
+    "emoteSetPartial", "emoteSetKey", "customSets", "channelSettings", "lastReWarn"
+])
+let emoteStateCache = null
+
+async function readEmoteState() {
+    if (emoteStateCache) return emoteStateCache
+    emoteStateCache = await ext.storage.local.get(EMOTE_STATE_KEYS)
+    return emoteStateCache
+}
+
+function patchEmoteState(values) {
+    if (!emoteStateCache) return
+    Object.assign(emoteStateCache, values)
+}
+
+ext.storage.onChanged.addListener((changes, area) => {
+    if (area !== "local" || !emoteStateCache) return
+    for (const key of EMOTE_STATE_KEYS) {
+        if (!(key in changes)) continue
+        if (changes[key].newValue === undefined) delete emoteStateCache[key]
+        else emoteStateCache[key] = changes[key].newValue
+    }
+})
+
 async function getEmote() {
+    const state = await readEmoteState()
     const {
         emoteSet,
         getEmoteAt,
@@ -7,19 +34,31 @@ async function getEmote() {
         emoteSetPartial,
         emoteSetKey,
         customSets: customSet = []
-    } = await ext.storage.local.get([
-        "emoteSet", "getEmoteAt", "emoteSetSize", "emoteSize",
-        "emoteSetPartial", "emoteSetKey", "customSets"
-    ])
+    } = state
     const size = emoteSetSize === clamp(emoteSize)
     const key = cacheKey(customSet)
     const keyOk = emoteSetKey === key
     const ttl = emoteSetPartial ? PARTIAL_RETRY_MS : CACHE_TTL_MS
-    const fresh = emoteSet && emoteSet.length && getEmoteAt && (Date.now() - getEmoteAt < ttl) && size && keyOk
+    const fresh = Array.isArray(emoteSet) && emoteSet.length && getEmoteAt
+        && Date.now() - getEmoteAt < ttl && size && keyOk
 
     if (fresh) return emoteSet
-    const res = await reloadEmote()
-    return res.emotes
+    try {
+        const res = await reloadEmote()
+        return res.emotes
+    } catch (err) {
+        const canFallback = Array.isArray(emoteSet) && emoteSet.length && size && keyOk
+        if (!canFallback) throw err
+
+        const warning = `Using cached emotes because refresh failed: ${errorText(err)}`
+        await setEmoteLoadStatus("ready", `Using ${emoteSet.length} cached emotes`, {
+            count: emoteSet.length,
+            warning,
+            stale: true,
+            finishedAt: Date.now()
+        })
+        return emoteSet
+    }
 }
 
 function cacheKey(customSet) {
@@ -65,21 +104,48 @@ async function getSetData(id, retry = false) {
     }
 }
 
+const setPreviewCache = new Map()
+async function getSetEmotes(id) {
+    if (!id || !/^[A-Za-z0-9]+$/.test(id)) throw new Error("Invalid emote set ID")
+    const state = await readEmoteState()
+    const size = clamp(state.emoteSize)
+    const cached = setPreviewCache.get(id)
+    if (cached && cached.size === size && Date.now() - cached.at < 10 * 60 * 1000)
+        return cached.value
+
+    const data = await getSetData(id)
+    const emotes = (data.emotes || [])
+        .filter(emote => emote && emote.name && emote.data && emote.data.host && emote.data.host.url)
+        .map(emote => ({
+            name: emote.name,
+            id: emote.id,
+            url: `https:${emote.data.host.url}/${size}x.webp`
+        }))
+    const value = {
+        setId: data.id || id,
+        setName: data.name || id,
+        count: emotes.length,
+        emotes
+    }
+    setPreviewCache.set(id, { at: Date.now(), size, value })
+    return value
+}
+
 async function loadEmote() {
-    let {
-        customSets: customSet = [],
-        emoteSize,
-        channelSettings: channelSetting = {}
-    } = await ext.storage.local.get(["customSets", "emoteSize", "channelSettings"])
-    const size = clamp(emoteSize)
+    const state = await readEmoteState()
+    let customSet = Array.isArray(state.customSets) ? state.customSets : []
+    const size = clamp(state.emoteSize)
+    const channelSetting = state.channelSettings && typeof state.channelSettings === "object"
+        ? state.channelSettings
+        : {}
     customSet = await refreshMain(customSet, channelSetting)
+    patchEmoteState({ customSets: customSet, channelSettings: channelSetting })
 
     const enabledSet = customSet.filter(s => s.enabled !== false)
     const id = ["global", ...enabledSet.map(s => s.id)]
-
     const task = await settleLimited(id, EMOTE_FETCH_CONCURRENCY, setId => getSetData(setId))
 
-    const byName = new Map()
+    const bySourceName = new Map()
     let anyOk = false
     const fail = []
     task.forEach((item, index) => {
@@ -90,21 +156,29 @@ async function loadEmote() {
 
         anyOk = true
         const source = index > 0 ? enabledSet[index - 1] : null
-        const channelName = source ? source.channelName : null
+        const channelId = source ? source.channelId : "global"
+        const channelName = source ? source.channelName : "Global 7TV"
+        const setId = source ? source.id : "global"
+        const setName = source ? source.setName : "Global 7TV"
         for (const emote of item.value.emotes || []) {
             if (!emote || !emote.name || !emote.data || !emote.data.host || !emote.data.host.url) continue
-            byName.set(emote.name, {
+            const sourceKey = `${channelId}\0${emote.name}`
+            if (bySourceName.has(sourceKey)) continue
+            bySourceName.set(sourceKey, {
                 name: emote.name,
                 id: emote.id,
                 url: `https:${emote.data.host.url}/${clamp(size)}x.webp`,
+                channelId,
                 channelName,
+                setId,
+                setName,
                 priority: index
             })
         }
     })
 
     if (!anyOk) throw new Error("Could not reach 7TV, check your connection and try again...")
-    const emote = Array.from(byName.values())
+    const emote = Array.from(bySourceName.values())
 
     const channelCount = new Map()
     for (const set of enabledSet)
@@ -120,14 +194,16 @@ async function loadEmote() {
     const warning = warn.length ? warn.join(" ") : null
 
     const partial = fail.length > 0
-    await ext.storage.local.set({
+    const nextState = {
         emoteSet: emote,
         getEmoteAt: Date.now(),
         emoteSetSize: size,
         emoteSetPartial: partial,
         emoteSetKey: cacheKey(customSet),
         lastReWarn: warning
-    })
+    }
+    await ext.storage.local.set(nextState)
+    patchEmoteState(nextState)
 
     if (partial) ext.alarms?.create(PARTIAL_RETRY_ALARM, { delayInMinutes: PARTIAL_RETRY_MS / 60000 })
     else ext.alarms?.clear(PARTIAL_RETRY_ALARM)
@@ -144,7 +220,7 @@ async function loadEmote() {
 
 function labelSet(set) {
     if (!set) return null
-    return set.setName ? `${set.channelName || ""} \u2013 ${set.setName}`.replace(/^ \u2013 /, "") : set.label
+    return set.setName ? `${set.channelName || ""} – ${set.setName}`.replace(/^ – /, "") : set.label
 }
 
 async function settleLimited(items, limit, worker) {

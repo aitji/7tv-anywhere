@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="css/controls.css">
     <link rel="stylesheet" href="css/channels.css">
     <link rel="stylesheet" href="css/settings.css">
+    <link rel="stylesheet" href="css/browser.css">
     <link rel="stylesheet" href="css/responsive.css">
 </head>
 
@@ -24,18 +25,31 @@
         </button>
     </header>
 
-    <div class="site-chip">
-        <svg class="icon" viewBox="0 0 16 16" fill="none">
-            <circle cx="8" cy="8" r="6.25" stroke="currentColor" stroke-width="1.3" />
-            <path
-                d="M2 8h12M8 1.75c1.6 1.7 2.5 3.9 2.5 6.25S9.6 12.55 8 14.25C6.4 12.55 5.5 10.35 5.5 8S6.4 3.45 8 1.75Z"
-                stroke="currentColor" stroke-width="1.1" />
-        </svg>
-        <span id="site-label" class="site-label">this site</span>
-        <button id="toggle-site" class="switch switch-sm" role="switch" aria-checked="true" title="Enable on this site">
-            <span class="switch-knob"></span>
-        </button>
-    </div>
+    <section class="site-chip" aria-label="Current site controls">
+        <div class="site-main-row">
+            <svg class="icon" viewBox="0 0 16 16" fill="none">
+                <circle cx="8" cy="8" r="6.25" stroke="currentColor" stroke-width="1.3" />
+                <path
+                    d="M2 8h12M8 1.75c1.6 1.7 2.5 3.9 2.5 6.25S9.6 12.55 8 14.25C6.4 12.55 5.5 10.35 5.5 8S6.4 3.45 8 1.75Z"
+                    stroke="currentColor" stroke-width="1.1" />
+            </svg>
+            <span id="site-label" class="site-label">this site</span>
+            <button id="toggle-site" class="switch switch-sm" role="switch" aria-checked="true"
+                title="Enable on this site">
+                <span class="switch-knob"></span>
+            </button>
+        </div>
+        <div class="site-mode-row">
+            <label for="site-render-mode">Mode</label>
+            <select id="site-render-mode" title="Rendering mode for this site">
+                <option value="inherit" selected>Normal (follow default)</option>
+                <option value="light">Lighter</option>
+                <option value="balanced">Balanced</option>
+                <option value="full">Full page scan</option>
+            </select>
+        </div>
+        <span id="site-render-mode-status" class="hint site-mode-status" role="status"></span>
+    </section>
 
     <div id="notice-banner" class="notice-banner hidden" role="status" aria-live="polite">
         <span id="notice-text" class="notice-lines"></span>
@@ -43,7 +57,7 @@
 
     <nav class="tab-bar" role="tablist">
         <button class="tab-btn is-active" data-tab="emotes" role="tab" aria-selected="true">Emotes</button>
-        <button class="tab-btn" data-tab="excluded" role="tab" aria-selected="false">Excluded</button>
+        <button class="tab-btn" data-tab="browser" role="tab" aria-selected="false">Browse</button>
         <button class="tab-btn" data-tab="settings" role="tab" aria-selected="false">Settings</button>
     </nav>
 
@@ -121,21 +135,48 @@
             </div>
         </section>
 
-        <!-- EXCLUDED TAB -->
-        <section id="panel-excluded" class="tab-panel" hidden>
-            <p class="tab-intro">Emote names here will never be rendered or suggested anywhere</p>
+        <!-- BROWSER TAB -->
+        <section id="panel-browser" class="tab-panel" hidden>
+            <p id="browser-intro" class="tab-intro">Choose a channel, then browse the emotes loaded from its sets</p>
 
-            <section class="field">
-                <div class="field-row">
-                    <input type="text" id="exclude-input" placeholder="Search an emote to exclude...">
-                    <button id="exclude-add" class="btn-secondary">Add exact</button>
+            <div class="browser-mode" role="tablist" aria-label="Browse mode">
+                <button id="browser-mode-channels" class="browser-mode-btn is-active" type="button" role="tab"
+                    aria-selected="true">Channels</button>
+                <button id="browser-mode-emotes" class="browser-mode-btn" type="button" role="tab"
+                    aria-selected="false">All emotes</button>
+            </div>
+
+            <section class="field browser-tools">
+                <input type="text" id="browser-search" placeholder="Search loaded channels...">
+                <div id="browser-emote-filters" class="browser-filter-stack" hidden>
+                    <div class="browser-filter-row">
+                        <select id="browser-channel-filter" aria-label="Filter by channel">
+                            <option value="all">All channels</option>
+                        </select>
+                        <select id="browser-set-filter" aria-label="Filter by emote set" disabled>
+                            <option value="all">All sets</option>
+                        </select>
+                    </div>
+                    <label class="check-row browser-blocked-filter">
+                        <input type="checkbox" id="browser-blocked-only">
+                        <span>Show blocked emotes only</span>
+                    </label>
                 </div>
-                <div id="exclude-search-results" class="search-results"></div>
-                <span class="hint" id="exclude-hint"></span>
+                <span id="browser-summary" class="hint"></span>
             </section>
 
-            <div id="excluded-list" class="card-list"></div>
-            <p class="empty-state" id="excluded-empty">No excluded emotes yet</p>
+            <div id="browser-set-preview" class="browser-set-preview" hidden>
+                <div class="browser-set-preview-copy">
+                    <strong id="browser-set-preview-title">Previewing a disabled set</strong>
+                    <span id="browser-set-preview-copy">Preview emotes are read-only until this set is enabled and
+                        saved</span>
+                </div>
+                <button id="browser-set-preview-action" class="btn-primary btn-compact" type="button">Enable
+                    set</button>
+            </div>
+
+            <div id="browser-list" class="card-list emote-browser-list"></div>
+            <p id="browser-empty" class="empty-state" hidden>No matching channels</p>
         </section>
 
         <!-- SETTINGS TAB -->
@@ -193,6 +234,7 @@
                 <p class="hint settings-copy">Lighter mode focuses on live/new text and skips heavier shadow-root scans.
                     Full mode checks more of the page, but can cost more CPU</p>
                 <span id="render-mode-status" class="hint" role="status"></span>
+
                 <div class="section-head settings-size-head">
                     <span class="section-label">Emote size</span>
                     <span id="emote-size-value" class="size-value">2x</span>
@@ -227,9 +269,9 @@
                     <button id="export-settings" class="btn-secondary">Export</button>
                     <button id="import-settings" class="btn-secondary">Import</button>
                 </div>
-                <input id="import-settings-file" type="file" accept="application/json,.json" hidden>
                 <span id="settings-status" class="hint" role="status"></span>
             </section>
+
 
             <section class="field settings-card">
                 <span class="section-label">Extension data</span>
@@ -237,12 +279,20 @@
                     <div><span>Version</span><strong id="data-version"></strong></div>
                     <div><span>Loaded</span><strong id="data-emotes"></strong></div>
                     <div><span>Configured</span><strong id="data-channels"></strong></div>
-                    <div><span>Excluded</span><strong id="data-excluded"></strong></div>
+                    <div><span>Blocked emotes</span><strong id="data-excluded"></strong></div>
                     <div><span>Matching</span><strong id="data-matching"></strong></div>
                     <div><span>Performance</span><strong id="data-performance"></strong></div>
                     <div><span>Draft</span><strong id="data-draft"></strong></div>
                     <div><span>Local storage</span><strong id="data-storage">Checking...</strong></div>
                 </div>
+            </section>
+
+
+            <section class="field settings-card">
+                <span class="section-label">Setup recovery</span>
+                <p class="hint settings-copy">Clear a stuck initialization state and rebuild the default channel setup
+                </p>
+                <button id="force-reinitialize" class="btn-danger btn-full">Force reinitialize</button>
             </section>
         </section>
     </main>
@@ -258,6 +308,20 @@
     <footer>
         <span>Developed by <a href="https://aitji.xyz">@aitji</a> · Swarm Property · All rights reserved.</span>
     </footer>
+
+    <div id="browser-set-overlay" class="confirm-overlay" hidden>
+        <div class="confirm-box browser-set-picker" role="dialog" aria-modal="true"
+            aria-labelledby="browser-set-overlay-channel">
+            <div class="confirm-title">Hold on!</div>
+            <div id="browser-set-overlay-channel" class="confirm-body browser-set-picker-channel"></div>
+            <div id="browser-set-overlay-warning" class="browser-set-picker-warning"></div>
+            <div id="browser-set-overlay-list" class="browser-set-picker-list"></div>
+            <div class="browser-set-picker-actions">
+                <button id="browser-set-overlay-discard" class="btn-secondary" type="button">Discard</button>
+                <button id="browser-set-overlay-apply" class="btn-primary" type="button">Apply</button>
+            </div>
+        </div>
+    </div>
 
     <div id="confirm-overlay" class="confirm-overlay" hidden>
         <div class="confirm-box" role="alertdialog" aria-labelledby="confirm-title" aria-describedby="confirm-body">
@@ -277,7 +341,12 @@
     <script src="js/channel-list.js"></script>
     <script src="js/channel-manage.js"></script>
     <script src="js/draft.js"></script>
-    <script src="js/excluded.js"></script>
+    <script src="js/browser-virtual-list.js"></script>
+    <script src="js/emote-browser-data.js"></script>
+    <script src="js/emote-browser-channels.js"></script>
+    <script src="js/emote-browser-emotes.js"></script>
+    <script src="js/emote-browser-set-dialog.js"></script>
+    <script src="js/emote-browser.js"></script>
     <script src="js/settings.js"></script>
     <script src="js/entry.js"></script>
 </body>

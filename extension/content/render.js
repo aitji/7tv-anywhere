@@ -1,6 +1,28 @@
 (() => {
     /** @type {typeof chrome} */
     const ext = typeof browser === "undefined" ? chrome : browser
+    const shared = globalThis.__7tvAnywhereShared ||= {}
+    shared.getSiteVerdict ||= url => {
+        if (shared.siteVerdictUrl !== url || !shared.siteVerdictPromise) {
+            shared.siteVerdictUrl = url
+            shared.siteVerdictPromise = Promise.resolve(
+                ext.runtime.sendMessage({ type: "IS_SITE_UNSUPPORTED", url })
+            ).catch(() => ({ unsupported: false }))
+        }
+        return shared.siteVerdictPromise
+    }
+    shared.getTopSite ||= () => {
+        if (!shared.topSitePromise) {
+            const request = window.top === window
+                ? Promise.resolve({ hostname: location.hostname, url: location.href })
+                : Promise.resolve(ext.runtime.sendMessage({ type: "GET_TOP_LEVEL_SITE", url: location.href }))
+            shared.topSitePromise = request.then(site => ({
+                hostname: site && site.hostname || location.hostname,
+                url: site && site.url || location.href
+            })).catch(() => ({ hostname: location.hostname, url: location.href }))
+        }
+        return shared.topSitePromise
+    }
 
     const SKIP_TAGS = Object.freeze(new Set([
         "SCRIPT", "STYLE", "NOSCRIPT", "TEXTAREA", "INPUT", "SELECT",
@@ -26,6 +48,7 @@
     let isActive = false
     let observer = null
     let observedRoots = new WeakSet()
+    const knownRoots = new Set([document])
     let needsRefresh = false
     let lifeRev = 0
     let processRev = 0
@@ -51,10 +74,14 @@
 
     async function storageChange(changes, area) {
         if (area !== "local") return
-        if ("enabled" in changes || "disabledSites" in changes || "enabledUnsupportedSites" in changes) await evlActive()
+        if ("siteCfg" in changes) {
+            shared.siteVerdictUrl = null
+            shared.siteVerdictPromise = null
+        }
+        if ("enabled" in changes || "disabledSites" in changes || "enabledUnsupportedSites" in changes || "siteCfg" in changes) await evlActive()
         if (isActive && ("excludedEmote" in changes || "emoteSet" in changes
             || "emoteSize" in changes || "caseSensitive" in changes || "matchPriority" in changes
-            || "renderMode" in changes)) {
+            || "renderMode" in changes || "siteRenderModes" in changes)) {
             await refreshEmote()
         }
     }
@@ -92,25 +119,31 @@
         const rev = ++lifeRev
         const loaded = await loadEmote()
         if (!loaded || rev !== lifeRev || !isActive || document.hidden) return
+        const modeChanged = renderMode !== loaded.renderMode
         applyEmote(loaded)
 
+        if (modeChanged && observer) stopObserving()
         restoreRendered()
         needsRefresh = false
         if (observer) schProing(document.body)
         else startObserving()
     }
 
-    async function checkUnsupported() {
-        try {
-            const res = await ext.runtime.sendMessage({ type: "IS_SITE_UNSUPPORTED", url: location.href })
-            return !!(res && res.unsupported)
-        } catch { return false }
+    async function checkUnsupported(site) {
+        const res = await shared.getSiteVerdict(site.url)
+        return !!(res && res.unsupported)
     }
 
     async function evlActive() {
-        const { enabled = true, disabledSites = [], enabledUnsupportedSites = [] } = await ext.storage.local.get(["enabled", "disabledSites", "enabledUnsupportedSites"])
-        const isUnsupported = await checkUnsupported()
-        const siteOk = isUnsupported ? enabledUnsupportedSites.includes(location.hostname) : !disabledSites.includes(location.hostname)
+        const [state, site] = await Promise.all([
+            ext.storage.local.get(["enabled", "disabledSites", "enabledUnsupportedSites"]),
+            shared.getTopSite()
+        ])
+        const { enabled = true, disabledSites = [], enabledUnsupportedSites = [] } = state
+        const isUnsupported = await checkUnsupported(site)
+        const siteOk = isUnsupported
+            ? enabledUnsupportedSites.includes(site.hostname)
+            : !disabledSites.includes(site.hostname)
         const shouldBeActive = enabled && siteOk
 
         if (shouldBeActive && !isActive) {
@@ -133,7 +166,8 @@
         try {
             result = await Promise.all([
                 ext.runtime.sendMessage({ type: "GET_EMOTES" }),
-                ext.storage.local.get(["excludedEmote", "emoteSize", "caseSensitive", "matchPriority", "renderMode"])
+                ext.storage.local.get(["excludedEmote", "emoteSize", "caseSensitive", "matchPriority", "renderMode", "siteRenderModes"]),
+                shared.getTopSite()
             ])
         } catch { return false }
         const [{
@@ -143,31 +177,33 @@
             emoteSize: size,
             caseSensitive: matchCase = false,
             matchPriority: priorityMode = "channel",
-            renderMode: mode = "balanced"
-        } = {}] = result
+            renderMode: mode = "balanced",
+            siteRenderModes = {}
+        } = {}, site = {}] = result
 
         const nextSize = size || 2
         const nextCase = matchCase === true
         const nextPriority = priorityMode === "case" ? "case" : "channel"
-        const nextMode = cleanRenderMode(mode)
+        const nextMode = cleanRenderMode(
+            siteRenderModes && typeof siteRenderModes === "object" && siteRenderModes[site.hostname]
+                ? siteRenderModes[site.hostname]
+                : mode
+        )
         const key = name => nextCase ? name : String(name).toLowerCase()
-        const excluded = new Set(excludedEmote.map(key))
         const map = new Map()
+        const excluded = makeExclusionMatcher(excludedEmote, nextCase)
         let min = Infinity
         let max = 0
         const first = new Set()
         for (const emote of emotes) {
+            if (excluded(emote)) continue
             const name = key(emote.name)
-            if (excluded.has(name)) continue
             min = Math.min(min, name.length)
             max = Math.max(max, name.length)
             first.add(name[0])
-            if (nextCase) map.set(name, [emote])
-            else {
-                const variant = map.get(name) || []
-                variant.push(emote)
-                map.set(name, variant)
-            }
+            const variant = map.get(name) || []
+            variant.push(emote)
+            map.set(name, variant)
         }
         return {
             map,
@@ -197,6 +233,35 @@
         return MODE[value] ? value : "balanced"
     }
 
+    function sourceId(emote) {
+        return String(emote && emote.channelId
+            ? emote.channelId
+            : emote && emote.channelName
+                ? `legacy:${emote.channelName}`
+                : "global")
+    }
+
+    function makeExclusionMatcher(excluded, matchCase) {
+        const global = new Set()
+        const bySource = new Set()
+        for (const item of Array.isArray(excluded) ? excluded : []) {
+            const name = typeof item === "string"
+                ? item
+                : item && typeof item.name === "string"
+                    ? item.name
+                    : ""
+            if (!name) continue
+            const key = matchCase ? name : name.toLowerCase()
+            if (typeof item === "string") global.add(key)
+            else if (typeof item.channelId === "string") bySource.add(`${item.channelId}\0${key}`)
+        }
+        return emote => {
+            const name = String(emote && emote.name || "")
+            const key = matchCase ? name : name.toLowerCase()
+            return global.has(key) || bySource.has(`${sourceId(emote)}\0${key}`)
+        }
+    }
+
     function startObserving() {
         if (!document.body || document.hidden || !isActive || observer) return
         processRev++
@@ -210,6 +275,7 @@
         if (!observer || observedRoots.has(root)) return
         observer.observe(root, { childList: true, subtree: true, characterData: true })
         observedRoots.add(root)
+        knownRoots.add(root)
     }
 
     function observeOpenShadows(root) {
@@ -241,14 +307,17 @@
         for (const mutation of mutations) {
             if (mutation.type === "childList") mutation.addedNodes.forEach(node => {
                 if (node.nodeType !== Node.ELEMENT_NODE && node.nodeType !== Node.TEXT_NODE) return
-                if (ownNode.has(node)) return
+                if (ownNode.has(node)) {
+                    ownNode.delete(node)
+                    return
+                }
                 if (node.nodeType === Node.ELEMENT_NODE && renderCfg.observeShadow) observeOpenShadows(node)
                 schProing(node)
             })
 
             else if (mutation.type === "characterData") {
-                const parent = mutation.target.parentElement
-                if (parent && !ownNode.has(mutation.target)) schProing(parent)
+                if (ownNode.has(mutation.target)) ownNode.delete(mutation.target)
+                else schProing(mutation.target)
             }
         }
     }
@@ -363,7 +432,10 @@
     }
 
     function proTextNode(textNode) {
-        if (ownNode.has(textNode)) return
+        if (ownNode.has(textNode)) {
+            ownNode.delete(textNode)
+            return
+        }
         if (!textNode.parentNode) return
 
         const text = textNode.nodeValue
@@ -397,14 +469,20 @@
             }
 
             found = true
-            if (start > lastIndex) frag.appendChild(document.createTextNode(text.slice(lastIndex, start)))
+            if (start > lastIndex) appendOwnText(frag, text.slice(lastIndex, start))
             frag.appendChild(createEmoteImg(emote, text.slice(start, end)))
             lastIndex = end
         }
 
         if (!found) return null
-        if (lastIndex < text.length) frag.appendChild(document.createTextNode(text.slice(lastIndex)))
+        if (lastIndex < text.length) appendOwnText(frag, text.slice(lastIndex))
         return frag
+    }
+
+    function appendOwnText(parent, text) {
+        const node = document.createTextNode(text)
+        ownNode.add(node)
+        parent.appendChild(node)
     }
 
     function canMatchWord(word) {
@@ -417,7 +495,7 @@
         const key = caseSensitive ? input : input.toLowerCase()
         const variant = emoteMap.get(key)
         if (!variant || !variant.length) return null
-        if (caseSensitive || variant.length === 1) return variant[0]
+        if (variant.length === 1) return variant[0]
 
         let best = variant[0]
         let bestCase = caseFit(input, best.name)
@@ -455,6 +533,8 @@
         img.style.height = emoteSize <= 1 ? "1.2em" : "28px"
         img.style.verticalAlign = "bottom"
         img.style.display = "inline-block"
+        img.style.setProperty("margin-top", "0px", "important")
+        img.style.setProperty("margin-bottom", "0px", "important")
 
         img.addEventListener("error", () => {
             if (!img.dataset.eaRetried) {
@@ -466,6 +546,7 @@
             }
             if (img.isConnected) {
                 const fallback = document.createTextNode(originalText)
+                ownNode.add(fallback)
                 img.replaceWith(fallback)
             }
         })
@@ -475,19 +556,11 @@
     }
 
     function restoreRendered() {
-        const roots = [document]
-        const queue = [document.documentElement]
-        while (queue.length) {
-            const root = queue.shift()
-            if (!root || !root.querySelectorAll) continue
-            for (const element of root.querySelectorAll("*")) {
-                if (!element.shadowRoot) continue
-                roots.push(element.shadowRoot)
-                queue.push(element.shadowRoot)
+        for (const root of Array.from(knownRoots)) {
+            if (root !== document && !root.isConnected) {
+                knownRoots.delete(root)
+                continue
             }
-        }
-
-        for (const root of roots) {
             const images = root.querySelectorAll
                 ? root.querySelectorAll("img[data-emoteanywhere-rendered='true']")
                 : []

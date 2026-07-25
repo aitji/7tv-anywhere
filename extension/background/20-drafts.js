@@ -47,9 +47,11 @@ async function saveDraft(input) {
                 emoteSize: clamp(state.emoteSize),
                 caseSensitive: state.caseSensitive === true,
                 matchPriority: cleanMatchPriority(state.matchPriority),
-                renderMode: cleanRenderMode(state.renderMode)
+                renderMode: cleanRenderMode(state.renderMode),
+                isInitDone: true
             })
             await ext.storage.local.remove("pendingDraft")
+            await setInitStatus("ready", "Ready!", { finishedAt: Date.now() })
             const beforeKey = cacheKey(savedBefore.customSets || [])
             const afterKey = cacheKey(state.customSets || [])
             const sameEmoteSource = beforeKey === afterKey && clamp(savedBefore.emoteSize) === clamp(state.emoteSize)

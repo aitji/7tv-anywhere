@@ -1,6 +1,28 @@
 (() => {
     /** @type {typeof chrome} */
     const ext = typeof browser === "undefined" ? chrome : browser
+    const shared = globalThis.__7tvAnywhereShared ||= {}
+    shared.getSiteVerdict ||= url => {
+        if (shared.siteVerdictUrl !== url || !shared.siteVerdictPromise) {
+            shared.siteVerdictUrl = url
+            shared.siteVerdictPromise = Promise.resolve(
+                ext.runtime.sendMessage({ type: "IS_SITE_UNSUPPORTED", url })
+            ).catch(() => ({ unsupported: false }))
+        }
+        return shared.siteVerdictPromise
+    }
+    shared.getTopSite ||= () => {
+        if (!shared.topSitePromise) {
+            const request = window.top === window
+                ? Promise.resolve({ hostname: location.hostname, url: location.href })
+                : Promise.resolve(ext.runtime.sendMessage({ type: "GET_TOP_LEVEL_SITE", url: location.href }))
+            shared.topSitePromise = request.then(site => ({
+                hostname: site && site.hostname || location.hostname,
+                url: site && site.url || location.href
+            })).catch(() => ({ hostname: location.hostname, url: location.href }))
+        }
+        return shared.topSitePromise
+    }
 
     const TRIGGER_RE = /:([A-Za-z0-9_]{1,})$/
     const DEBOUNCE_MS = 90
@@ -22,20 +44,32 @@
     async function init() {
         document.addEventListener("visibilitychange", visibilityChange)
         await elvActive()
-        ext.storage.onChanged.addListener(async (changes, area) => (area === "local" && ("enabled" in changes || "disabledSites" in changes || "enabledUnsupportedSites" in changes)) && await elvActive())
+        ext.storage.onChanged.addListener(async (changes, area) => {
+            if (area !== "local") return
+            if ("siteCfg" in changes) {
+                shared.siteVerdictUrl = null
+                shared.siteVerdictPromise = null
+            }
+            if ("enabled" in changes || "disabledSites" in changes || "enabledUnsupportedSites" in changes || "siteCfg" in changes)
+                await elvActive()
+        })
     }
 
-    async function checkUnsupported() {
-        try {
-            const res = await ext.runtime.sendMessage({ type: "IS_SITE_UNSUPPORTED", url: location.href })
-            return !!(res && res.unsupported)
-        } catch { return false }
+    async function checkUnsupported(site) {
+        const res = await shared.getSiteVerdict(site.url)
+        return !!(res && res.unsupported)
     }
 
     async function elvActive() {
-        const { enabled = true, disabledSites = [], enabledUnsupportedSites = [] } = await ext.storage.local.get(["enabled", "disabledSites", "enabledUnsupportedSites"])
-        const isUnsupported = await checkUnsupported()
-        const siteOk = isUnsupported ? enabledUnsupportedSites.includes(location.hostname) : !disabledSites.includes(location.hostname)
+        const [state, site] = await Promise.all([
+            ext.storage.local.get(["enabled", "disabledSites", "enabledUnsupportedSites"]),
+            shared.getTopSite()
+        ])
+        const { enabled = true, disabledSites = [], enabledUnsupportedSites = [] } = state
+        const isUnsupported = await checkUnsupported(site)
+        const siteOk = isUnsupported
+            ? enabledUnsupportedSites.includes(site.hostname)
+            : !disabledSites.includes(site.hostname)
         siteEnabled = enabled && siteOk
         setActive(siteEnabled && !document.hidden)
     }
@@ -278,7 +312,7 @@
 
         shadow = host.attachShadow({ mode: "open" })
         const style = document.createElement("style")
-        style.textContent = `.ea-dropdown{position:fixed;width:min(260px,calc(100vw - 8px));max-height:min(260px,calc(100vh - 12px));overflow-y:auto;background:#161b22;border:1px solid #30363d;border-radius:8px;box-shadow:0 8px 24px rgba(1,4,9,0.6);padding:4px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;} .ea-item{display:flex;align-items:center;gap:8px;min-height:36px;padding:6px 8px;border-radius:6px;cursor:pointer;color:#c9d1d9;font-size:13px;line-height:1.2;} .ea-item img{width:24px;height:24px;object-fit:contain;flex-shrink:0;} .ea-item span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;} .ea-item-active{background:#1f6feb33;color:#58a6ff;} .ea-status{padding:9px 10px;color:#8b949e;font-size:12px;} .ea-dropdown::-webkit-scrollbar{width:8px;} .ea-dropdown::-webkit-scrollbar-thumb{background:#30363d;border-radius:4px;} @media(pointer:coarse){.ea-item{min-height:44px;}}`
+        style.textContent = `.ea-dropdown{position:fixed;width:min(260px,calc(100vw - 8px));max-height:min(260px,calc(100vh - 12px));overflow-y:auto;background:#161b22;border:1px solid #30363d;border-radius:8px;box-shadow:0 8px 24px rgba(1,4,9,0.6);padding:4px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;} .ea-item{display:flex;align-items:center;gap:8px;min-height:36px;padding:6px 8px;border-radius:6px;cursor:pointer;color:#c9d1d9;font-size:13px;line-height:1.2;} .ea-item img{width:24px;height:24px;object-fit:contain;flex-shrink:0;} .ea-copy{display:grid;min-width:0;gap:2px;} .ea-copy strong,.ea-copy small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;} .ea-copy strong{font-size:13px;font-weight:600;} .ea-copy small{color:#8b949e;font-size:10px;} .ea-item-active{background:#1f6feb33;color:#58a6ff;} .ea-status{padding:9px 10px;color:#8b949e;font-size:12px;} .ea-dropdown::-webkit-scrollbar{width:8px;} .ea-dropdown::-webkit-scrollbar-thumb{background:#30363d;border-radius:4px;} @media(pointer:coarse){.ea-item{min-height:44px;}}`
         shadow.appendChild(style)
 
         listEl = document.createElement("div")
@@ -303,9 +337,15 @@
             img.alt = emote.name
             item.appendChild(img)
 
-            const name = document.createElement("span")
+            const copy = document.createElement("div")
+            copy.className = "ea-copy"
+            const name = document.createElement("strong")
             name.textContent = emote.name
-            item.appendChild(name)
+            copy.appendChild(name)
+            const source = document.createElement("small")
+            source.textContent = emote.channelName || "Global 7TV"
+            copy.appendChild(source)
+            item.appendChild(copy)
 
             item.addEventListener("pointerdown", (e) => {
                 e.preventDefault()

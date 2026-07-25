@@ -142,8 +142,13 @@ function renderCCard(channel, index, total) {
     removeBtn.title = "Remove this channel and all of its set(s)"
     removeBtn.addEventListener("click", () => {
         draft.customSets = draft.customSets.filter(s => s.channelId !== channel.channelId)
+        draft.excludedEmote = cleanExcludedEmote(draft.excludedEmote).filter(item =>
+            typeof item === "string" || item.channelId !== channel.channelId
+        )
         delete draft.channelSettings[channel.channelId]
+        syncDraftGlobals()
         renderHome()
+        renderEmoteBrowser()
         updateSaveBar()
     })
     top.appendChild(removeBtn)

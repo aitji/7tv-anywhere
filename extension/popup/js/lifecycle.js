@@ -38,12 +38,13 @@ async function init() {
         updateCheckIntervalHours = appState.updateCheckIntervalHours || 168,
         lastCheck = appState.lastCheck || null,
         siteCfg: storedSiteCfg = null,
-        siteCfgAt = null
+        siteCfgAt = null,
+        siteRenderModes: storedSiteRenderModes = {}
     } = await ext.storage.local.get([
         "enabled", "disabledSites", "enabledUnsupportedSites", "customSets", "channelSettings",
         "emoteSize", "emoteSet", "excludedEmote", "caseSensitive", "matchPriority", "renderMode", "lastReWarn", "pendingDraft",
         "initStatus", "emoteLoadStatus", "channelOperation", "autoCheckUpdates",
-        "updateCheckIntervalHours", "lastCheck", "siteCfg", "siteCfgAt"
+        "updateCheckIntervalHours", "lastCheck", "siteCfg", "siteCfgAt", "siteRenderModes"
     ])
 
     setSwitch(toggleEnabledBtn, enabled)
@@ -77,6 +78,13 @@ async function init() {
         ? storedSiteCfg.siteRules.length
         : verdict.ruleCount
     siteRulesCachedAt = siteCfgAt || null
+    siteRenderModes = storedSiteRenderModes && typeof storedSiteRenderModes === "object"
+        ? storedSiteRenderModes
+        : {}
+    siteRenderModeSelect.disabled = !hostname
+    siteRenderModeSelect.value = hostname && siteRenderModes[hostname]
+        ? cleanRenderMode(siteRenderModes[hostname])
+        : "inherit"
     autoCheckUpdatesInput.checked = autoCheckUpdates !== false
     updateCheckIntervalSelect.value = ["24", "168", "720"].includes(String(updateCheckIntervalHours))
         ? String(updateCheckIntervalHours)
@@ -86,7 +94,7 @@ async function init() {
     if (lastReWarn) reloadWarningEl.textContent = lastReWarn
     popupReady = true
     renderHome()
-    renderExcluded()
+    renderEmoteBrowser(true)
     renderSettingsData()
     refreshStorageUsage()
     updateSaveBar()
@@ -113,11 +121,14 @@ function renderLastChecked(timestamp) {
 function renderSettingsData() {
     const channelCount = new Set(draft.customSets.map(set => set.channelId)).size
     dataVersionEl.textContent = ext.runtime.getManifest().version
-    dataEmotesEl.textContent = `${emoteByName.size} emote${emoteByName.size == 1 ? '' : 's'}`
+    dataEmotesEl.textContent = `${loadedEmoteList.length} source emote${loadedEmoteList.length === 1 ? "" : "s"}`
     dataChannelsEl.textContent = `${channelCount} channel${channelCount === 1 ? "" : "s"} · ${draft.customSets.length} set${draft.customSets.length === 1 ? "" : "s"}`
-    dataExcludedEl.textContent = `${(draft.excludedEmote || []).length} emote${(draft.excludedEmote || []).length === 1 ? "" : "s"}`
+    dataExcludedEl.textContent = `${cleanExcludedEmote(draft.excludedEmote).length} rule${cleanExcludedEmote(draft.excludedEmote).length === 1 ? "" : "s"}`
     dataMatchingEl.textContent = `${draft.caseSensitive ? "case-sensitive" : "ignore case"} · ${cleanMatchPriority(draft.matchPriority) === "case" ? "case first" : "channel first"}`
-    dataPerformanceEl.textContent = cleanRenderMode(draft.renderMode)
+    const siteMode = hostname && siteRenderModes[hostname]
+    dataPerformanceEl.textContent = siteMode
+        ? `${cleanRenderMode(draft.renderMode)} global · ${cleanRenderMode(siteMode)} here`
+        : cleanRenderMode(draft.renderMode)
     dataDraftEl.textContent = isDirty() ? "Unsaved changes" : "No pending changes"
 
     const cached = siteRulesCachedAt
@@ -182,7 +193,7 @@ function queueStorageStateSync() {
             closeManageView()
         else if (currentChannelId) renderManageView()
         renderHome()
-        renderExcluded()
+        renderEmoteBrowser()
         renderNotice()
         renderSettingsData()
         updateSaveBar()
@@ -214,7 +225,7 @@ ext.storage.onChanged.addListener((changes, area) => {
         const emotes = changes.emoteSet.newValue
         setCount(emotes.length)
         setPopupEmote(emotes)
-        renderExcluded()
+        renderEmoteBrowser()
         renderNotice()
         renderSettingsData()
     }
@@ -225,7 +236,15 @@ ext.storage.onChanged.addListener((changes, area) => {
         siteRuleCount = Array.isArray(cfg && cfg.siteRules) ? cfg.siteRules.length : 0
     }
     if (changes.siteCfgAt) siteRulesCachedAt = changes.siteCfgAt.newValue || null
-    if (changes.siteCfg || changes.siteCfgAt) renderSettingsData()
+    if (changes.siteRenderModes) {
+        siteRenderModes = changes.siteRenderModes.newValue && typeof changes.siteRenderModes.newValue === "object"
+            ? changes.siteRenderModes.newValue
+            : {}
+        siteRenderModeSelect.value = hostname && siteRenderModes[hostname]
+            ? cleanRenderMode(siteRenderModes[hostname])
+            : "inherit"
+    }
+    if (changes.siteCfg || changes.siteCfgAt || changes.siteRenderModes) renderSettingsData()
 })
 
 async function reEmoteCount() {
@@ -235,7 +254,7 @@ async function reEmoteCount() {
 
         setCount(emotes.length)
         setPopupEmote(emotes)
-        renderExcluded()
+        renderEmoteBrowser()
         renderNotice()
         renderSettingsData()
     } catch { }

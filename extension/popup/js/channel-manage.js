@@ -39,9 +39,10 @@ confirmActionBtn.addEventListener("click", async () => {
     if (action) await action()
 })
 
-const asChannelSet = () => draft.customSets.filter(s => s.channelId === currentChannelId)
+const asChannelSet = () => draftChannelSets(currentChannelId)
+const visibleChannelSets = () => asChannelSet()
 function renderManageView() {
-    const set = asChannelSet().slice().reverse()
+    const set = visibleChannelSets()
     if (!set.length) return closeManageView()
 
     const name = set[0].channelName
@@ -57,6 +58,7 @@ function renderManageView() {
     manageOverlapWarning.hidden = pref.alwaysMain || enabled.length <= 1
     if (!manageOverlapWarning.hidden)
         manageOverlapWarning.textContent = "More than one set is enabled here, so emotes sharing a name may override each other..."
+    else manageOverlapWarning.textContent = ""
 
     const activeSet = pref.knownActiveSetId && set.find(s => s.id === pref.knownActiveSetId)
     if (activeSet) {
@@ -158,6 +160,17 @@ function renderSetCard(set, pref, index, total) {
     status.textContent = locked ? (on ? "Enabled (following main)" : "Disabled") : (on ? "Enabled" : "Disabled")
     bottom.appendChild(status)
 
+    const actions = document.createElement("div")
+    actions.className = "card-actions"
+
+    const browseBtn = document.createElement("button")
+    browseBtn.className = "btn-secondary btn-compact"
+    browseBtn.type = "button"
+    browseBtn.textContent = "Browse emotes"
+    browseBtn.title = `Open ${set.setName} in Browse`
+    browseBtn.addEventListener("click", () => openBrowserSet(set.channelId, set.id))
+    actions.appendChild(browseBtn)
+
     const toggle = makeSwitch(on, {
         disabled: locked,
         title: locked ? 'Turn off "Always use main channel emote set" to control sets individually' : ''
@@ -168,7 +181,8 @@ function renderSetCard(set, pref, index, total) {
         renderManageView()
         updateSaveBar()
     })
-    bottom.appendChild(toggle)
+    actions.appendChild(toggle)
+    bottom.appendChild(actions)
     card.appendChild(bottom)
 
     return card
@@ -189,7 +203,7 @@ function commitSetOrderDOM() {
     if (!visual.length) return
 
     const byId = new Map(draft.customSets.filter(s => s.channelId === currentChannelId).map(s => [s.id, s]))
-    const orderChannel = visual.slice().reverse().map(id => byId.get(id)).filter(Boolean)
+    const orderChannel = visual.map(id => byId.get(id)).filter(Boolean)
 
     let i = 0
     draft.customSets = draft.customSets.map(s => s.channelId === currentChannelId ? orderChannel[i++] : s)
@@ -199,12 +213,12 @@ function commitSetOrderDOM() {
 }
 
 function moveSet(setId, direction) {
-    const visual = asChannelSet().slice().reverse()
+    const visual = visibleChannelSets()
     const from = visual.findIndex(set => set.id === setId)
     const to = from + direction
     if (from < 0 || to < 0 || to >= visual.length) return
         ;[visual[from], visual[to]] = [visual[to], visual[from]]
-    const reordered = visual.slice().reverse()
+    const reordered = visual
     let index = 0
     draft.customSets = draft.customSets.map(set =>
         set.channelId === currentChannelId ? reordered[index++] : set
@@ -219,7 +233,7 @@ alwaysMainToggle.addEventListener("change", () => {
 
     const pref = draft.channelSettings[currentChannelId] || {}
     if (alwaysMainToggle.checked) {
-        const mainId = pref.knownActiveSetId || sets[0].id
+        const mainId = pref.knownActiveSetId || visibleChannelSets()[0].id
         sets.forEach(s => { s.enabled = s.id === mainId })
         draft.channelSettings[currentChannelId] = { ...pref, alwaysMain: true }
     } else draft.channelSettings[currentChannelId] = { ...pref, alwaysMain: false }

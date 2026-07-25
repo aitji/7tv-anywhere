@@ -25,16 +25,20 @@ Bring the emotes you love to chats, comments, and conversations across the web. 
 
 ## What you can do
 
-- [x] Render 7TV emotes in supported webpage text
-- [x] Type `:emote` to search in compatible chats, comments, and text fields
-- [x] Add emotes from *Twitch channels* or *7TV emote sets*
-- [x] Follow a channel's *current main emote set* automatically
-- [x] Choose which channels and individual emotes are enabled
-- [x] Match emote names with or without case sensitivity
-- [x] Enable or disable the extension for individual websites
-- [x] Adjust emote size and channel priority
-- [x] Import and export your settings
-- [x] See loading, saving, and update activity through the popup and extension badge
+* [x] Render 7TV emotes in supported webpage text
+* [x] Type `:emote` to search in compatible chats, comments, and text fields
+* [x] Add emotes from Twitch channels or individual 7TV emote sets
+* [x] Follow a channel's current main emote set automatically
+* [x] Browse configured channels, sets, and loaded emotes
+* [x] Preview disabled emote sets before enabling them
+* [x] Disable an emote globally or only for a specific channel
+* [x] Match emote names with or without case sensitivity
+* [x] Enable or disable the extension for individual websites
+* [x] Choose a global performance mode or override it per website
+* [x] Adjust emote size and set priority
+* [x] Import and export your settings
+* [x] Toggle the extension with a keyboard shortcut
+* [x] See loading, saving, and update activity through the popup and extension badge
 
 The popup is designed for both desktop browsers and Firefox for Android. Hidden tabs pause emote processing and release their lookup data until they become visible again, reducing background resource use.
 
@@ -56,7 +60,11 @@ Compatibility can *vary* as websites update their layouts. If something breaks, 
 
 ## Installation
 
-Chrome and Firefox store listings are being prepared. Until they are available, you can install a packaged build from [GitHub Releases](../../releases).
+Install 7TV Anywhere from [Firefox Add-ons](https://addons.mozilla.org/en-US/addon/7tv-anywhere).
+
+The Chrome Web Store listing is currently under review and will be linked here once approved.
+
+Packaged builds are also available from [GitHub Releases](../../releases) for manual installation, development, and testing.
 
 ### Packaged build
 

@@ -7,14 +7,18 @@ async function refreshMain(customSet, channelSetting) {
     })
     if (!dueId.length) return customSet
 
-    let changed = false
-    for (const channelId of dueId) try {
+    const refreshed = await settleLimited(dueId, EMOTE_FETCH_CONCURRENCY, async channelId => {
         const user = await getUser(channelId)
         const mainId = user ? activeId(user) : null
-        if (!mainId) continue
+        if (!mainId) return null
         const info = await getSet(mainId)
-        if (!info) continue
+        return info ? { channelId, user, info } : null
+    })
 
+    let changed = false
+    for (const result of refreshed) {
+        if (result.status !== "fulfilled" || !result.value) continue
+        const { channelId, user, info } = result.value
         const pref = channelSetting[channelId] || {}
         const targetId = pref.knownActiveSetId || info.id
         let updated = false
@@ -50,7 +54,7 @@ async function refreshMain(customSet, channelSetting) {
             mainRefreshedAt: now
         }
         changed = true
-    } catch { }
+    }
 
     if (changed) await ext.storage.local.set({
         customSets: customSet,

@@ -1,4 +1,4 @@
-@media (max-width: 380px) {
+@media (max-width: 355px) {
     body {
         padding: 12px max(10px, env(safe-area-inset-right)) max(4px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
     }
@@ -41,5 +41,20 @@
         min-width: 34px;
         min-height: 34px;
         justify-content: center;
+    }
+}
+@media (max-width: 320px) {
+    .site-mode-row {
+        align-items: stretch;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    .site-mode-row select {
+        width: 100%;
+    }
+
+    .site-mode-status {
+        margin-left: 0;
     }
 }

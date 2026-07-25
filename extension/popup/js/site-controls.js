@@ -12,16 +12,22 @@ const setCount = (count) => {
 
 
 
-tabBtns.forEach(btn => btn.addEventListener("click", () => {
-    tabBtns.forEach(b => {
-        b.classList.toggle("is-active", b === btn)
-        b.setAttribute("aria-selected", b === btn ? "true" : "false")
+function selectPopupTab(tab) {
+    tabBtns.forEach(btn => {
+        const active = btn.dataset.tab === tab
+        btn.classList.toggle("is-active", active)
+        btn.setAttribute("aria-selected", active ? "true" : "false")
     })
-
-    const tab = btn.dataset.tab
     panelEmotes.hidden = tab !== "emotes"
-    panelExcluded.hidden = tab !== "excluded"
+    panelBrowser.hidden = tab !== "browser"
     panelSettings.hidden = tab !== "settings"
+    if (tab === "browser") renderEmoteBrowser(true)
+}
+
+tabBtns.forEach(btn => btn.addEventListener("click", () => {
+    const tab = btn.dataset.tab
+    selectPopupTab(tab)
+    if (tab === "browser" && typeof showBrowserChannels === "function") showBrowserChannels()
 }))
 
 toggleEnabledBtn.addEventListener("click", async () => {

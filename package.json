@@ -1,15 +1,15 @@
 {
     "name": "7tv-anywhere",
-    "version": "1.0.5",
+    "version": "1.0.6",
     "private": true,
     "description": "Build and validation tooling for the 7TV Anywhere browser extension",
     "scripts": {
         "build": "node scripts/build.mjs",
-        "check": "npm run check:source && npm run check:structure && npm run test:site-rules && npm run build && npm run check:build && npm run lint:firefox",
-
+        "check": "npm run check:source && npm run check:structure && npm run test:site-rules && npm run test:emote-browser && npm run build && npm run check:build && npm run lint:firefox",
         "check:source": "node scripts/check-source.mjs",
         "check:structure": "node scripts/check-structure.mjs",
         "test:site-rules": "node tests/site-rules.mjs",
+        "test:emote-browser": "node tests/emote-browser.mjs",
         "check:build": "node scripts/check-build.mjs",
         "lint:firefox": "web-ext lint --source-dir build/firefox --warnings-as-errors",
         "dev:firefox": "npm run build && web-ext run --source-dir build/firefox",

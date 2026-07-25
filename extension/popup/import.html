@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Import 7TV Anywhere settings</title>
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/controls.css">
+    <link rel="stylesheet" href="css/settings.css">
+    <link rel="stylesheet" href="css/import.css">
+</head>
+
+<body class="import-page">
+    <main class="import-shell">
+        <header class="import-hero">
+            <div class="import-brand">
+                <img src="../icons/icon.svg" alt="" aria-hidden="true" width="42" height="42" class="import-brand-icon">
+                <div>
+                    <p class="import-kicker">7TV Anywhere</p>
+                    <h1 class="import-title">Import settings</h1>
+                </div>
+            </div>
+            <p class="import-copy">Restore channels, emote rules, site preferences,
+                and extension settings from a JSON backup.</p>
+        </header>
+
+        <section class="field settings-card import-card">
+            <label class="import-file-label" for="import-file">Choose backup file</label>
+            <input id="import-file" class="import-file" type="file" accept="application/json,.json">
+
+            <div class="import-preview" aria-live="polite">
+                <span class="section-label">Backup preview</span>
+                <p id="import-summary" class="settings-data-copy">No file selected</p>
+                <span id="import-status" class="hint" role="status"></span>
+            </div>
+
+            <div class="import-actions">
+                <button id="import-apply" class="btn-primary" disabled>Import settings</button>
+                <button id="import-close" class="btn-secondary">Close</button>
+            </div>
+        </section>
+
+        <footer>
+            <span class="import-note">
+                Developed by <a href="https://aitji.xyz">@aitji</a>
+                · Swarm Property · All rights reserved.
+            </span>
+        </footer>
+    </main>
+    <script src="js/import-page.js"></script>
+</body>
+
+</html>

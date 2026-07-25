@@ -1,37 +1,92 @@
+const SUGGESTION_PREF_KEYS = Object.freeze(["excludedEmote", "caseSensitive", "matchPriority"])
+let suggestionPrefsCache = null
+let suggestionIndexSource = null
+let suggestionIndex = []
+
+async function getSuggestionPrefs() {
+    if (suggestionPrefsCache) return suggestionPrefsCache
+    suggestionPrefsCache = await ext.storage.local.get(SUGGESTION_PREF_KEYS)
+    return suggestionPrefsCache
+}
+
+ext.storage.onChanged.addListener((changes, area) => {
+    if (area !== "local") return
+    if (changes.emoteSet) {
+        suggestionIndexSource = null
+        suggestionIndex = []
+    }
+    if (!suggestionPrefsCache) return
+    for (const key of SUGGESTION_PREF_KEYS) {
+        if (!(key in changes)) continue
+        if (changes[key].newValue === undefined) delete suggestionPrefsCache[key]
+        else suggestionPrefsCache[key] = changes[key].newValue
+    }
+})
+
+function getSuggestionIndex(emote) {
+    if (suggestionIndexSource === emote) return suggestionIndex
+    suggestionIndexSource = emote
+    suggestionIndex = emote.map(item => ({
+        item,
+        sensitiveName: String(item.name),
+        insensitiveName: String(item.name).toLowerCase(),
+        sensitiveNorm: norm(item.name, true),
+        insensitiveNorm: norm(item.name, false)
+    }))
+    return suggestionIndex
+}
+
 async function getSugg(query) {
-    const [emote, { excludedEmote = [], caseSensitive = false, matchPriority = "channel" }] = await Promise.all([
-        getEmote(),
-        ext.storage.local.get(["excludedEmote", "caseSensitive", "matchPriority"])
-    ])
+    const [emote, prefs] = await Promise.all([getEmote(), getSuggestionPrefs()])
+    const {
+        excludedEmote = [],
+        caseSensitive = false,
+        matchPriority = "channel"
+    } = prefs
 
     const q = norm(query, caseSensitive)
     const priorityMode = cleanMatchPriority(matchPriority)
-    const exKey = name => caseSensitive ? String(name) : String(name).toLowerCase()
-    const exclude = new Set(excludedEmote.map(exKey))
-
-    const match = []
-    for (const item of emote) {
-        if (exclude.has(exKey(item.name))) continue
-        const score = fuzzy(q, norm(item.name, caseSensitive))
-        if (score > 0) match.push({
-            ...item,
+    const isExcluded = makeExclusionMatcher(excludedEmote, caseSensitive)
+    const matchByName = new Map()
+    for (const entry of getSuggestionIndex(emote)) {
+        if (isExcluded(entry.item)) continue
+        const score = fuzzy(q, caseSensitive ? entry.sensitiveNorm : entry.insensitiveNorm)
+        if (score <= 0) continue
+        const candidate = {
+            item: entry.item,
             score,
-            caseScore: caseFit(query, item.name)
-        })
+            caseScore: caseFit(query, entry.item.name)
+        }
+        const previous = matchByName.get(entry.sensitiveName)
+        if (!previous || compareSuggestion(candidate, previous, priorityMode) < 0)
+            matchByName.set(entry.sensitiveName, candidate)
     }
 
+    const match = Array.from(matchByName.values())
     match.sort((a, b) => {
         const score = b.score - a.score
         if (score) return score
         if (priorityMode === "case")
             return b.caseScore - a.caseScore
-                || (b.priority || 0) - (a.priority || 0)
-                || a.name.localeCompare(b.name)
-        return (b.priority || 0) - (a.priority || 0)
+                || (b.item.priority || 0) - (a.item.priority || 0)
+                || a.item.name.localeCompare(b.item.name)
+        return (b.item.priority || 0) - (a.item.priority || 0)
             || b.caseScore - a.caseScore
-            || a.name.localeCompare(b.name)
+            || a.item.name.localeCompare(b.item.name)
     })
-    return match.slice(0, MAX_SUGGESTIONS)
+    return match.slice(0, MAX_SUGGESTIONS).map(entry => entry.item)
+}
+
+function compareSuggestion(a, b, priorityMode) {
+    const score = b.score - a.score
+    if (score) return score
+    if (priorityMode === "case")
+        return b.caseScore - a.caseScore
+            || (b.item.priority || 0) - (a.item.priority || 0)
+            || a.item.name.localeCompare(b.item.name)
+    return (b.item.priority || 0) - (a.item.priority || 0)
+        || b.caseScore - a.caseScore
+        || a.item.name.localeCompare(b.item.name)
 }
 
 // helpers

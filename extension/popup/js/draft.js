@@ -20,9 +20,7 @@ function serializeComparableState(state) {
         if (clean.alwaysMain !== true) delete clean.alwaysMain
         if (Object.keys(clean).length) channelSettings[channelId] = clean
     }
-    const excludedEmote = Array.from(new Set(
-        (state.excludedEmote || []).filter(name => typeof name === "string")
-    ))
+    const excludedEmote = cleanExcludedEmote(state.excludedEmote)
     return JSON.stringify(canonicalize({
         caseSensitive: state.caseSensitive === true,
         channelSettings,
@@ -85,7 +83,7 @@ async function saveDraft() {
         if (result.emotes) {
             setCount(result.emotes.length)
             setPopupEmote(result.emotes)
-            renderExcluded()
+            renderEmoteBrowser()
             renderNotice()
         }
         reloadWarningEl.textContent = result.warning || ""
@@ -114,7 +112,7 @@ discardBtn.addEventListener("click", () => {
             renderChannelStatus()
             if (currentChannelId) closeManageView()
             renderHome()
-            renderExcluded()
+            renderEmoteBrowser()
             renderNotice()
             updateSaveBar()
         }
@@ -141,7 +139,7 @@ async function triggerReload() {
             const emotes = res.emotes || []
             setCount(emotes.length)
             setPopupEmote(emotes)
-            renderExcluded()
+            renderEmoteBrowser()
             renderNotice()
             if (res.warning) reloadWarningEl.textContent = res.warning
         } else reloadWarningEl.textContent = errorText(res && res.error)

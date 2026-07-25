@@ -16,7 +16,12 @@ export const popupScripts = [
     "js/channel-list.js",
     "js/channel-manage.js",
     "js/draft.js",
-    "js/excluded.js",
+    "js/browser-virtual-list.js",
+    "js/emote-browser-data.js",
+    "js/emote-browser-channels.js",
+    "js/emote-browser-emotes.js",
+    "js/emote-browser-set-dialog.js",
+    "js/emote-browser.js",
     "js/settings.js",
     "js/entry.js"
 ]
@@ -27,5 +32,6 @@ export const popupStyles = [
     "css/controls.css",
     "css/channels.css",
     "css/settings.css",
+    "css/browser.css",
     "css/responsive.css"
 ]

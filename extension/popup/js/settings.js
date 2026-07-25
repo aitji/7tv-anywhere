@@ -2,6 +2,7 @@ caseSensitiveInput.addEventListener("change", async () => {
     draft.caseSensitive = caseSensitiveInput.checked
     syncDraftGlobals()
     renderNotice()
+    renderEmoteBrowser()
     caseSensitiveStatusEl.textContent = caseSensitive
         ? "Exact letter case enabled!"
         : "Emote names now ignore letter case!"
@@ -12,10 +13,26 @@ matchPrioritySelect.addEventListener("change", () => {
     draft.matchPriority = cleanMatchPriority(matchPrioritySelect.value)
     syncDraftGlobals()
     renderNotice()
+    renderEmoteBrowser()
     matchPriorityStatusEl.textContent = matchPriority === "case"
         ? "Closest letter case will win first!"
         : "Channel order will win first!"
     updateSaveBar()
+})
+
+siteRenderModeSelect.addEventListener("change", async () => {
+    if (!hostname) return
+    const selected = siteRenderModeSelect.value
+    const { siteRenderModes: stored = {} } = await ext.storage.local.get("siteRenderModes")
+    const next = stored && typeof stored === "object" ? { ...stored } : {}
+    if (selected === "inherit") delete next[hostname]
+    else next[hostname] = cleanRenderMode(selected)
+    siteRenderModes = next
+    await ext.storage.local.set({ siteRenderModes: next })
+    siteRenderModeStatusEl.textContent = selected === "inherit"
+        ? "Following the default performance mode"
+        : `${cleanRenderMode(selected)} mode applies only to ${hostname}`
+    renderSettingsData()
 })
 
 renderModeSelect.addEventListener("change", () => {
@@ -71,7 +88,7 @@ const backupKeys = [
     "enabled", "disabledSites", "enabledUnsupportedSites",
     "customSets", "channelSettings", "emoteSize",
     "excludedEmote", "caseSensitive", "matchPriority",
-    "renderMode", "autoCheckUpdates", "updateCheckIntervalHours"
+    "renderMode", "siteRenderModes", "autoCheckUpdates", "updateCheckIntervalHours"
 ]
 
 exportSettingsBtn.addEventListener("click", async () => {
@@ -79,7 +96,7 @@ exportSettingsBtn.addEventListener("click", async () => {
     const settings = await ext.storage.local.get(backupKeys)
     const payload = {
         format: "7tv-anywhere-settings",
-        schemaVersion: 1,
+        schemaVersion: 2,
         extensionVersion: ext.runtime.getManifest().version,
         exportedAt: new Date().toISOString(),
         settings
@@ -98,93 +115,38 @@ exportSettingsBtn.addEventListener("click", async () => {
         : "Settings exported!"
 })
 
-importSettingsBtn.addEventListener("click", () => importSettingsFile.click())
-importSettingsFile.addEventListener("change", async () => {
-    const [file] = importSettingsFile.files || []
-    importSettingsFile.value = ""
-    if (!file) return
-    if (file.size > 1024 * 1024) {
-        settingsStatusEl.textContent = "That file is too large to be a settings backup..."
-        settingsStatusEl.classList.add("error")
-        return
-    }
-
+importSettingsBtn.addEventListener("click", async () => {
+    settingsStatusEl.classList.remove("error")
+    const url = ext.runtime.getURL("popup/import.html")
     try {
-        const parsed = JSON.parse(await file.text())
-        const imported = validateImportedSettings(parsed)
-        showConfirm({
-            title: "Import settings?",
-            body: "This replaces your saved channels, exclusions, site preferences, and update settings; your current draft will be discarded",
-            actionLabel: "Import settings",
-            onAction: async () => {
-                await ext.storage.local.set(imported)
-                await ext.storage.local.remove("pendingDraft")
-                settingsStatusEl.classList.remove("error")
-                settingsStatusEl.textContent = "Imported! Reloading emotes..."
-                saved = fillDraft(imported)
-                draft = cloneState(saved)
-                savedSerialized = serializeComparableState(saved)
-                lastPersistedDraft = JSON.stringify(draft)
-                syncDraftGlobals()
-                setSwitch(toggleEnabledBtn, imported.enabled !== false)
-                emoteSizeInput.value = imported.emoteSize || 2
-                emoteSizeValue.textContent = `${emoteSizeInput.value}x`
-                autoCheckUpdatesInput.checked = imported.autoCheckUpdates !== false
-                updateCheckIntervalSelect.value = String(imported.updateCheckIntervalHours || 168)
-                await triggerReload()
-                renderHome()
-                renderExcluded()
-                renderSettingsData()
-                updateSaveBar()
-                settingsStatusEl.textContent = "Settings imported!"
-            }
-        })
-    } catch (err) {
-        settingsStatusEl.textContent = errorText(err, "Import failed")
-        settingsStatusEl.classList.add("error")
+        await ext.tabs.create({ url })
+        settingsStatusEl.textContent = "Opened the settings importer in a new tab"
+    } catch {
+        window.open(url, "_blank", "noopener")
     }
 })
 
-function validateImportedSettings(parsed) {
-    if (!parsed || typeof parsed !== "object") throw new Error("Not a JSON settings object")
-    if (parsed.format && parsed.format !== "7tv-anywhere-settings")
-        throw new Error("This backup belongs to another application")
-    const settings = parsed.settings && typeof parsed.settings === "object" ? parsed.settings : parsed
-
-    const customSets = settings.customSets
-    if (!Array.isArray(customSets)
-        || !customSets.every(set => set && typeof set.id === "string" && typeof set.channelId === "string"))
-        throw new Error("Invalid channel/set list")
-    if (!settings.channelSettings || typeof settings.channelSettings !== "object"
-        || Array.isArray(settings.channelSettings))
-        throw new Error("Invalid channel settings")
-    if (!Array.isArray(settings.excludedEmote)
-        || !settings.excludedEmote.every(name => typeof name === "string"))
-        throw new Error("Invalid excluded-emote list")
-
-    const emoteSize = Number(settings.emoteSize)
-    const interval = Number(settings.updateCheckIntervalHours || 168)
-    if (![1, 2, 3, 4].includes(emoteSize)) throw new Error("Invalid emote size")
-    if (![24, 168, 720].includes(interval)) throw new Error("Invalid update interval")
-
-    return {
-        enabled: settings.enabled !== false,
-        disabledSites: Array.isArray(settings.disabledSites) ? settings.disabledSites.filter(v => typeof v === "string") : [],
-        enabledUnsupportedSites: Array.isArray(settings.enabledUnsupportedSites)
-            ? settings.enabledUnsupportedSites.filter(v => typeof v === "string")
-            : [],
-        customSets: cloneState(customSets),
-        channelSettings: cloneState(settings.channelSettings),
-        emoteSize,
-        excludedEmote: Array.from(new Set(settings.excludedEmote)),
-        caseSensitive: settings.caseSensitive === true,
-        matchPriority: cleanMatchPriority(settings.matchPriority),
-        renderMode: cleanRenderMode(settings.renderMode),
-        autoCheckUpdates: settings.autoCheckUpdates !== false,
-        updateCheckIntervalHours: interval,
-        isInitDone: true
+forceReinitializeBtn.addEventListener("click", () => showConfirm({
+    title: "Force reinitialize?",
+    body: "This removes saved channels and cached emotes, then rebuilds the default setup. Export your settings first if you may need them",
+    actionLabel: "Reinitialize",
+    danger: true,
+    onAction: async () => {
+        forceReinitializeBtn.disabled = true
+        forceReinitializeBtn.textContent = "Reinitializing..."
+        siteRulesStatusEl.classList.remove("error")
+        try {
+            const result = await ext.runtime.sendMessage({ type: "FORCE_REINITIALIZE" })
+            if (!result || !result.success) throw new Error((result && result.error) || "Reinitialization failed")
+            location.reload()
+        } catch (err) {
+            siteRulesStatusEl.textContent = errorText(err)
+            siteRulesStatusEl.classList.add("error")
+            forceReinitializeBtn.disabled = false
+            forceReinitializeBtn.textContent = "Force reinitialize"
+        }
     }
-}
+}))
 
 refreshSiteRulesBtn.addEventListener("click", async () => {
     refreshSiteRulesBtn.disabled = true

@@ -20,10 +20,18 @@ async function syncBadge() {
         initStatus,
         emoteLoadStatus,
         channelOperation,
-        updateInfo
+        updateInfo,
+        customSets,
+        channelSettings,
+        excludedEmote,
+        emoteSize,
+        caseSensitive,
+        matchPriority,
+        renderMode
     } = await ext.storage.local.get([
         "pendingDraft", "initStatus", "emoteLoadStatus",
-        "channelOperation", "updateInfo"
+        "channelOperation", "updateInfo", "customSets", "channelSettings",
+        "excludedEmote", "emoteSize", "caseSensitive", "matchPriority", "renderMode"
     ])
     if (rev !== badgeRev) return
 
@@ -49,7 +57,10 @@ async function syncBadge() {
         text = "!"
         color = "#f56565"
         title += " — Something needs attention"
-    } else if (validDraft(pendingDraft)) {
+    } else if (hasDraftChanges(pendingDraft, {
+        customSets, channelSettings, excludedEmote, emoteSize,
+        caseSensitive, matchPriority, renderMode
+    })) {
         text = "?"
         color = "#f0b429"
         title += " — Unsaved changes"
@@ -129,11 +140,31 @@ async function checkUpdate(force) {
 }
 
 function checkVer(a, b) {
-    const pa = String(a || "0").split(".").map(n => parseInt(n, 10) || 0)
-    const pb = String(b || "0").split(".").map(n => parseInt(n, 10) || 0)
-    for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
-        const diff = (pa[i] || 0) - (pb[i] || 0)
+    const parse = value => {
+        const [main, pre = ""] = String(value || "0").trim().replace(/^v/i, "").split("-", 2)
+        return {
+            core: main.split(".").map(part => /^\d+$/.test(part) ? Number(part) : 0),
+            pre: pre ? pre.split(".") : []
+        }
+    }
+    const left = parse(a)
+    const right = parse(b)
+    for (let i = 0; i < Math.max(left.core.length, right.core.length); i++) {
+        const diff = (left.core[i] || 0) - (right.core[i] || 0)
         if (diff !== 0) return diff > 0 ? 1 : -1
+    }
+    if (!left.pre.length || !right.pre.length)
+        return left.pre.length === right.pre.length ? 0 : left.pre.length ? -1 : 1
+
+    for (let i = 0; i < Math.max(left.pre.length, right.pre.length); i++) {
+        if (left.pre[i] === undefined) return -1
+        if (right.pre[i] === undefined) return 1
+        if (left.pre[i] === right.pre[i]) continue
+        const leftNum = /^\d+$/.test(left.pre[i])
+        const rightNum = /^\d+$/.test(right.pre[i])
+        if (leftNum && rightNum) return Number(left.pre[i]) > Number(right.pre[i]) ? 1 : -1
+        if (leftNum !== rightNum) return leftNum ? -1 : 1
+        return left.pre[i] > right.pre[i] ? 1 : -1
     }
     return 0
 }
@@ -154,6 +185,11 @@ ext.runtime.onMessage.addListener((msg, _sender, sendRes) => {
         case "GET_EMOTES": initialize()
             .then(() => getEmote())
             .then(emotes => sendRes({ emotes }))
+            .catch(err => sendRes({ emotes: [], error: errorText(err) }))
+            return true
+
+        case "GET_SET_EMOTES": getSetEmotes(String(msg.setId || ""))
+            .then(sendRes)
             .catch(err => sendRes({ emotes: [], error: errorText(err) }))
             return true
 
@@ -196,12 +232,28 @@ ext.runtime.onMessage.addListener((msg, _sender, sendRes) => {
             .catch(err => sendRes({ error: errorText(err) }))
             return true
 
+        case "GET_TOP_LEVEL_SITE": {
+            const url = _sender && _sender.tab && _sender.tab.url
+                ? _sender.tab.url
+                : String(msg.url || "")
+            let hostname = ""
+            try { hostname = new URL(url).hostname }
+            catch { }
+            sendRes({ hostname, url })
+            return false
+        }
+
         case "IS_SITE_UNSUPPORTED": getCfg()
             .then(({ siteRules }) => sendRes({
                 ...siteVerdict(msg.url || "", siteRules),
                 ruleCount: siteRules.length
             }))
             .catch(err => sendRes({ unsupported: false, note: null, error: errorText(err) }))
+            return true
+
+        case "FORCE_REINITIALIZE": forceReinitialize()
+            .then(result => sendRes(result))
+            .catch(err => sendRes({ success: false, error: errorText(err) }))
             return true
 
         case "REFRESH_SITE_RULES": getCfg(true)
@@ -214,6 +266,12 @@ ext.runtime.onMessage.addListener((msg, _sender, sendRes) => {
 
         default: return false
     }
+})
+
+ext.commands?.onCommand.addListener(async command => {
+    if (command !== "toggle-extension") return
+    const { enabled = true } = await ext.storage.local.get("enabled")
+    await ext.storage.local.set({ enabled: !enabled })
 })
 
 syncBadge().catch(() => { })

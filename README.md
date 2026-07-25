@@ -1,6 +1,11 @@
+<div align="center">
 <img src=".github/img/marquee.png" alt="7TV Anywhere, Bring your favorite 7TV emotes across the web">
 
 ## **7**TV Anywhere
+
+[Releases](https://github.com/aitji/7tv-anywhere/releases/latest) | [Firefox Add-ons](https://addons.mozilla.org/en-US/addon/7tv-anywhere) | [Chrome Web Store](https://chromewebstore.google.com/detail/7tv-anywhere/cgkabhdkbomilgoofppnnanckhadjmkj) | [PRIVACY](https://github.com/aitji/7tv-anywhere/blob/main/PRIVACY.md)
+
+</div>
 
 **Take your favorite [7TV](https://7tv.app) emotes beyond Twitch!**
 

@@ -116,7 +116,8 @@ html {
 
 body {
     width: 360px;
-    min-height: 600px;
+    height: 600px;
+    max-height: 600px;
     overflow-y: auto;
     margin: 0;
     padding: 14px 14px 4px;

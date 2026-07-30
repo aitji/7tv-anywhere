@@ -10,7 +10,45 @@
         "minikomew": "1004060561",
         "filian": "198633200",
         "ellie_minibot": "825937345",
-        "dougdoug": "31507411"
+        "dougdoug": "31507411",
+        "zentreya": "128440061",
+        "nihmune": "650221094",
+        "alexvoid": "99728740",
+        "laynalazar": "64140092",
+        "hannahhyrule": "96347469",
+        "geega": "36973271",
+        "crelly": "719949561",
+        "chrchie": "32173571",
+        "cdawg": "45098797",
+        "btmc": "46708418",
+        "bao": "110059426",
+        "anny": "56418014",
+        "toma": "542237669",
+        "alettasky": "886570238",
+        "asakura_yukai": "101630441",
+        "codemiko": "500128827",
+        "cottontailva": "548281862",
+        "39daph": "160504245",
+        "fallenshadow": "578762718",
+        "gx_aura": "896715637",
+        "juniperactias": "598403800",
+        "laimu": "22510076",
+        "asheliarinkou": "664168605",
+        "lucypyre": "696039109",
+        "megalodonvt": "810617325",
+        "michimochievee": "1057785822",
+        "miwo": "147826626",
+        "motherv3": "848110685",
+        "moniibagel": "404021580",
+        "rainhoe": "127309732",
+        "robcdee": "169185650",
+        "saruei": "122863474",
+        "shylily": "100901794",
+        "sinder": "617455187",
+        "snuffy": "515567425",
+        "takanashikiara": "596758002",
+        // "magicthenoah": "242305317", // nvm he doesn't have emote
+        "tenma": "664177022"
     },
     "siteRules": [
         // not support
@@ -63,7 +101,6 @@
             "subdomain": true,
             "note": ":oh: god :NO:"
         },
-
         // support
         {
             "flag": "support",
@@ -155,12 +192,13 @@
             "subdomain": true,
             "note": "should work correctly"
         },
-
         // neurosama "easter egg?"
         {
             "flag": "support",
             "host": "vedal.ai",
-            "pattern": ["/pendsmthngonmydsk"],
+            "pattern": [
+                "/pendsmthngonmydsk"
+            ],
             "note": "hey! you can't look at :evilBoogie: files without her permission"
         },
         {
@@ -195,7 +233,6 @@
             "host": "swarmsync.app",
             "note": "paid spyware, im not jealous or anything :RAGEY:" // note: insider joke
         },
-
         // partially supported
         {
             "flag": "support",

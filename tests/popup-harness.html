@@ -31,10 +31,17 @@
             ],
             excludedEmote: ["0", "1"],
             caseSensitive: false,
+            zeroWidthEmote: true,
+            zeroWidthText: false,
             matchPriority: "channel",
             renderMode: "balanced",
+            emoteHoverStyle: "card",
+            emoteHoverLayout: "right",
+            emoteHoverTemplate: "{original} ({emote}@{channel})",
+            emoteHoverDelay: 350,
             initStatus: { phase: "ready", message: "Ready.", updatedAt: Date.now() },
             autoCheckUpdates: true,
+            maintainerGuidance: true,
             updateCheckIntervalHours: 168
         }
         if (new URL(location.href).searchParams.has("draft")) {
@@ -95,7 +102,7 @@
 
         globalThis.chrome = {
             runtime: {
-                getManifest: () => ({ version: "1.0.5" }),
+                getManifest: () => ({ version: "1.0.8" }),
                 sendMessage: async message => {
                     if (message.type === "GET_APP_STATE") return pick([
                         "initStatus", "emoteLoadStatus", "channelOperation", "pendingDraft",
@@ -106,7 +113,7 @@
                     if (message.type === "GET_SUGGESTIONS") return { suggestions: storageData.emoteSet }
                     if (message.type === "CHECK_FOR_UPDATE") return {
                         checked: true,
-                        updateInfo: { currentVersion: "1.0.5", latestVersion: "1.0.5", updateAvailable: false }
+                        updateInfo: { currentVersion: "1.0.8", latestVersion: "1.0.8", updateAvailable: false }
                     }
                     if (message.type === "RELOAD_EMOTES") return { success: true, emotes: storageData.emoteSet }
                     if (message.type === "SAVE_DRAFT") {
@@ -116,7 +123,13 @@
                             excludedEmote: message.draft.excludedEmote,
                             caseSensitive: message.draft.caseSensitive,
                             matchPriority: message.draft.matchPriority,
-                            renderMode: message.draft.renderMode
+                            renderMode: message.draft.renderMode,
+                            zeroWidthEmote: message.draft.zeroWidthEmote,
+                            zeroWidthText: message.draft.zeroWidthText,
+                            emoteHoverStyle: message.draft.emoteHoverStyle,
+                            emoteHoverLayout: message.draft.emoteHoverLayout,
+                            emoteHoverTemplate: message.draft.emoteHoverTemplate,
+                            emoteHoverDelay: message.draft.emoteHoverDelay
                         })
                         await removeStorage("pendingDraft")
                         return { success: true, emotes: storageData.emoteSet }

@@ -3,6 +3,7 @@ const EMOTE_STATE_KEYS = Object.freeze([
     "emoteSetPartial", "emoteSetKey", "customSets", "channelSettings", "lastReWarn"
 ])
 let emoteStateCache = null
+const isZeroWidthEmote = emote => (Number(emote && emote.data && emote.data.flags) & 256) !== 0
 
 async function readEmoteState() {
     if (emoteStateCache) return emoteStateCache
@@ -164,7 +165,7 @@ async function loadEmote() {
             if (!emote || !emote.name || !emote.data || !emote.data.host || !emote.data.host.url) continue
             const sourceKey = `${channelId}\0${emote.name}`
             if (bySourceName.has(sourceKey)) continue
-            bySourceName.set(sourceKey, {
+            const entry = {
                 name: emote.name,
                 id: emote.id,
                 url: `https:${emote.data.host.url}/${clamp(size)}x.webp`,
@@ -173,7 +174,9 @@ async function loadEmote() {
                 setId,
                 setName,
                 priority: index
-            })
+            }
+            if (isZeroWidthEmote(emote)) entry.zeroWidth = true
+            bySourceName.set(sourceKey, entry)
         }
     })
 

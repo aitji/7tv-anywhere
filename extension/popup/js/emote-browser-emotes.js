@@ -57,6 +57,31 @@ function updateBrowserSetPreview(set, previewing) {
     if (error) browserSetPreviewActionBtn.disabled = false
 }
 
+function fuzzyBrowserScore(value, query, offset) {
+    const text = String(value || "").toLowerCase()
+    if (!text || !query) return Infinity
+    if (text === query) return offset
+    if (text.startsWith(query)) return offset + 1
+    const wordStart = text.split(/[^a-z0-9_]+/).some(word => word.startsWith(query))
+    if (wordStart) return offset + 2
+    if (text.includes(query)) return offset + 3
+    if (query.length < 3) return Infinity
+    let index = 0
+    for (let i = 0; i < text.length && index < query.length; i++)
+        if (text[i] === query[index]) index++
+    return index === query.length ? offset + 4 : Infinity
+}
+
+function browserEmoteSearchScore(emote, query) {
+    if (!query) return 0
+    const name = fuzzyBrowserScore(emote.name, query, 0)
+    if (Number.isFinite(name) || query.length < 2) return name
+    return Math.min(
+        fuzzyBrowserScore(emote.channelName || "Global 7TV", query, 10),
+        fuzzyBrowserScore(emote.setName, query, 20)
+    )
+}
+
 function renderLoadedEmotes() {
     const query = String(browserSearchInput.value || "").trim().toLowerCase()
     const channelId = browserChannelFilter.value || "all"
@@ -72,6 +97,7 @@ function renderLoadedEmotes() {
         ? browserPreviewBySet.get(previewKey) || []
         : loadedEmoteList
     const groups = new Map()
+    const scoreByGroup = new Map()
 
     updateBrowserSetPreview(selectedSet, previewing)
     if (previewing && !browserPreviewBySet.has(previewKey) && !browserPreviewLoading.has(previewKey) && !browserPreviewError.has(previewKey))
@@ -81,19 +107,20 @@ function renderLoadedEmotes() {
         if (channelId !== "all" && emoteSourceId(emote) !== channelId) continue
         if (setId !== "all" && String(emote.setId || "unknown") !== setId) continue
         if (blockedOnly && emote.previewOnly) continue
-        if (query && !String(emote.name).toLowerCase().includes(query)
-            && !String(emote.channelName || "Global 7TV").toLowerCase().includes(query)
-            && !String(emote.setName || "").toLowerCase().includes(query)) continue
+        const score = browserEmoteSearchScore(emote, query)
+        if (!Number.isFinite(score)) continue
 
         const key = String(emote.name).toLowerCase()
         const group = groups.get(key) || []
         group.push(emote)
         groups.set(key, group)
+        scoreByGroup.set(key, Math.min(scoreByGroup.get(key) ?? Infinity, score))
     }
 
     const matches = Array.from(groups.entries())
         .filter(([, variants]) => !blockedOnly || variants.some(emote => isEmoteExcluded(emote)))
-        .sort(([left], [right]) => left.localeCompare(right))
+        .sort(([left], [right]) => scoreByGroup.get(left) - scoreByGroup.get(right)
+            || left.localeCompare(right))
 
     const sourceCount = matches.reduce((count, [, variants]) => count + variants.length, 0)
     browserSummaryEl.textContent = previewing
@@ -181,6 +208,7 @@ function makeEmoteSourceRow(emote, groupVariants, showName, tagName = "div") {
     img.className = "emote-source-thumb"
     img.src = emote.url
     img.alt = showName ? emote.name : ""
+    img.title = `${emote.name} (${emote.channelName || "Global 7TV"})`
     img.loading = "lazy"
     row.appendChild(img)
 

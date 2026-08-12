@@ -11,6 +11,10 @@
     const clone = value => JSON.parse(JSON.stringify(value))
     const cleanPriority = value => value === "case" ? "case" : "channel"
     const cleanMode = value => ["light", "balanced", "full"].includes(value) ? value : "balanced"
+    const cleanHoverStyle = value => value === "title" ? "title" : "card"
+    const cleanHoverTemplate = value => String(value || "{original} ({emote}@{channel})").trim().slice(0, 400)
+        || "{original} ({emote}@{channel})"
+    const cleanHoverDelay = value => Math.max(0, Math.min(1500, Number(value) || 0))
     const cleanExcluded = value => {
         if (!Array.isArray(value)) throw new Error("Invalid blocked-emote list")
         const out = []
@@ -133,12 +137,21 @@
             caseSensitive: settings.caseSensitive === true,
             matchPriority: cleanPriority(settings.matchPriority),
             renderMode: cleanMode(settings.renderMode),
+            zeroWidthEmote: settings.zeroWidthEmote !== false,
+            zeroWidthText: settings.zeroWidthText === true,
+            emoteHoverStyle: cleanHoverStyle(settings.emoteHoverStyle),
+            emoteHoverLayout: ["right", "left", "top", "hidden"].includes(settings.emoteHoverLayout)
+                ? settings.emoteHoverLayout
+                : "right",
+            emoteHoverTemplate: cleanHoverTemplate(settings.emoteHoverTemplate),
+            emoteHoverDelay: settings.emoteHoverDelay === undefined ? 350 : cleanHoverDelay(settings.emoteHoverDelay),
             siteRenderModes: Object.fromEntries(Object.entries(
                 settings.siteRenderModes && typeof settings.siteRenderModes === "object"
                     ? settings.siteRenderModes
                     : {}
             ).filter(([host, mode]) => typeof host === "string" && ["light", "balanced", "full"].includes(mode))),
             autoCheckUpdates: settings.autoCheckUpdates !== false,
+            maintainerGuidance: settings.maintainerGuidance !== false,
             updateCheckIntervalHours: interval,
             isInitDone: true
         }

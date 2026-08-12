@@ -1,5 +1,6 @@
 importScripts(
     "background/00-core.js",
+    "background/05-site-rules.js",
     "background/10-runtime.js",
     "background/20-drafts.js",
     "background/30-emotes.js",

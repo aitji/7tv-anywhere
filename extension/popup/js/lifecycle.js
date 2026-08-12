@@ -27,14 +27,21 @@ async function init() {
         emoteSet = [],
         excludedEmote: storedExcluded = [],
         caseSensitive: storedCaseSensitive = false,
+        zeroWidthEmote = true,
+        zeroWidthText = false,
         matchPriority: storedMatchPriority = "channel",
         renderMode: storedRenderMode = "balanced",
+        emoteHoverStyle = "card",
+        emoteHoverLayout = "right",
+        emoteHoverTemplate = DEFAULT_HOVER_TEMPLATE,
+        emoteHoverDelay = 350,
         lastReWarn = null,
         pendingDraft = appState.pendingDraft,
         initStatus = appState.initStatus,
         emoteLoadStatus = appState.emoteLoadStatus,
         channelOperation = appState.channelOperation,
         autoCheckUpdates = appState.autoCheckUpdates ?? true,
+        maintainerGuidance: storedMaintainerGuidance = true,
         updateCheckIntervalHours = appState.updateCheckIntervalHours || 168,
         lastCheck = appState.lastCheck || null,
         siteCfg: storedSiteCfg = null,
@@ -42,9 +49,10 @@ async function init() {
         siteRenderModes: storedSiteRenderModes = {}
     } = await ext.storage.local.get([
         "enabled", "disabledSites", "enabledUnsupportedSites", "customSets", "channelSettings",
-        "emoteSize", "emoteSet", "excludedEmote", "caseSensitive", "matchPriority", "renderMode", "lastReWarn", "pendingDraft",
+        "emoteSize", "emoteSet", "excludedEmote", "caseSensitive", "zeroWidthEmote", "zeroWidthText", "matchPriority", "renderMode",
+        "emoteHoverStyle", "emoteHoverLayout", "emoteHoverTemplate", "emoteHoverDelay", "lastReWarn", "pendingDraft",
         "initStatus", "emoteLoadStatus", "channelOperation", "autoCheckUpdates",
-        "updateCheckIntervalHours", "lastCheck", "siteCfg", "siteCfgAt", "siteRenderModes"
+        "updateCheckIntervalHours", "lastCheck", "siteCfg", "siteCfgAt", "siteRenderModes", "maintainerGuidance"
     ])
 
     setSwitch(toggleEnabledBtn, enabled)
@@ -61,7 +69,13 @@ async function init() {
         emoteSize,
         caseSensitive: storedCaseSensitive === true,
         matchPriority: storedMatchPriority,
-        renderMode: storedRenderMode
+        renderMode: storedRenderMode,
+        zeroWidthEmote,
+        zeroWidthText,
+        emoteHoverStyle,
+        emoteHoverLayout,
+        emoteHoverTemplate,
+        emoteHoverDelay
     })
     savedSerialized = serializeComparableState(saved)
     draft = validDraft(pendingDraft)
@@ -74,6 +88,7 @@ async function init() {
     setCount(loadedEmotes.length)
     setPopupEmote(loadedEmotes)
     syncDraftGlobals()
+    emoteHoverStatusEl.textContent = `Preview: ${formatHoverSample(emoteHoverTemplateInput.value)}`
     siteRuleCount = Array.isArray(storedSiteCfg && storedSiteCfg.siteRules)
         ? storedSiteCfg.siteRules.length
         : verdict.ruleCount
@@ -86,6 +101,9 @@ async function init() {
         ? cleanRenderMode(siteRenderModes[hostname])
         : "inherit"
     autoCheckUpdatesInput.checked = autoCheckUpdates !== false
+    maintainerGuidance = storedMaintainerGuidance !== false
+    maintainerGuidanceInput.checked = maintainerGuidance
+    refreshSiteRulesBtn.disabled = !maintainerGuidance
     updateCheckIntervalSelect.value = ["24", "168", "720"].includes(String(updateCheckIntervalHours))
         ? String(updateCheckIntervalHours)
         : "168"
@@ -131,6 +149,10 @@ function renderSettingsData() {
         : cleanRenderMode(draft.renderMode)
     dataDraftEl.textContent = isDirty() ? "Unsaved changes" : "No pending changes"
 
+    if (!maintainerGuidance) {
+        siteRulesSummaryEl.textContent = "Disabled · no maintainer compatibility request will run"
+        return
+    }
     const cached = siteRulesCachedAt
         ? `updated ${new Date(siteRulesCachedAt).toLocaleString()}`
         : "not downloaded yet"
@@ -171,7 +193,8 @@ function queueStorageStateSync() {
     storageSyncTimer = setTimeout(async () => {
         const state = await ext.storage.local.get([
             "customSets", "channelSettings", "excludedEmote", "emoteSize",
-            "caseSensitive", "matchPriority", "renderMode", "pendingDraft"
+            "caseSensitive", "matchPriority", "renderMode", "zeroWidthEmote", "zeroWidthText",
+            "emoteHoverStyle", "emoteHoverLayout", "emoteHoverTemplate", "emoteHoverDelay", "pendingDraft"
         ])
         saved = fillDraft({
             customSets: migrateSet(state.customSets || []),
@@ -180,7 +203,13 @@ function queueStorageStateSync() {
             emoteSize: state.emoteSize,
             caseSensitive: state.caseSensitive === true,
             matchPriority: state.matchPriority,
-            renderMode: state.renderMode
+            renderMode: state.renderMode,
+            zeroWidthEmote: state.zeroWidthEmote,
+            zeroWidthText: state.zeroWidthText,
+            emoteHoverStyle: state.emoteHoverStyle,
+            emoteHoverLayout: state.emoteHoverLayout,
+            emoteHoverTemplate: state.emoteHoverTemplate,
+            emoteHoverDelay: state.emoteHoverDelay
         })
         savedSerialized = serializeComparableState(saved)
         draft = validDraft(state.pendingDraft)
@@ -188,6 +217,7 @@ function queueStorageStateSync() {
             : cloneState(saved)
         lastPersistedDraft = JSON.stringify(draft)
         syncDraftGlobals()
+        emoteHoverStatusEl.textContent = `Preview: ${formatHoverSample(emoteHoverTemplateInput.value)}`
 
         if (currentChannelId && !draft.customSets.some(s => s.channelId === currentChannelId))
             closeManageView()
@@ -203,11 +233,16 @@ function queueStorageStateSync() {
 ext.storage.onChanged.addListener((changes, area) => {
     if (area !== "local") return
     queueStorageUsageRefresh()
+    const pendingMatchesDraft = changes.pendingDraft
+        && validDraft(changes.pendingDraft.newValue)
+        && serializeComparableState(fillDraft(changes.pendingDraft.newValue, saved)) === serializeComparableState(draft)
     if (
         changes.customSets || changes.channelSettings
         || changes.excludedEmote || changes.emoteSize || changes.caseSensitive
         || changes.matchPriority || changes.renderMode
-        || changes.pendingDraft
+        || changes.zeroWidthEmote || changes.zeroWidthText
+        || changes.emoteHoverStyle || changes.emoteHoverLayout || changes.emoteHoverTemplate || changes.emoteHoverDelay
+        || (changes.pendingDraft && !pendingMatchesDraft)
     ) queueStorageStateSync()
 
     if (changes.initStatus || changes.emoteLoadStatus || changes.channelOperation) {
@@ -236,6 +271,17 @@ ext.storage.onChanged.addListener((changes, area) => {
         siteRuleCount = Array.isArray(cfg && cfg.siteRules) ? cfg.siteRules.length : 0
     }
     if (changes.siteCfgAt) siteRulesCachedAt = changes.siteCfgAt.newValue || null
+    if (changes.maintainerGuidance) {
+        maintainerGuidance = changes.maintainerGuidance.newValue !== false
+        maintainerGuidanceInput.checked = maintainerGuidance
+        refreshSiteRulesBtn.disabled = !maintainerGuidance
+        if (!maintainerGuidance) {
+            isUnsupportedSite = false
+            siteNote = null
+            siteRuleFlag = null
+            renderNotice()
+        }
+    }
     if (changes.siteRenderModes) {
         siteRenderModes = changes.siteRenderModes.newValue && typeof changes.siteRenderModes.newValue === "object"
             ? changes.siteRenderModes.newValue
@@ -244,7 +290,7 @@ ext.storage.onChanged.addListener((changes, area) => {
             ? cleanRenderMode(siteRenderModes[hostname])
             : "inherit"
     }
-    if (changes.siteCfg || changes.siteCfgAt || changes.siteRenderModes) renderSettingsData()
+    if (changes.siteCfg || changes.siteCfgAt || changes.siteRenderModes || changes.maintainerGuidance) renderSettingsData()
 })
 
 async function reEmoteCount() {

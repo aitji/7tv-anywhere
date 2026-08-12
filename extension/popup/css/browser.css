@@ -231,6 +231,10 @@
     gap: 7px;
 }
 
+.browser-filter-stack[hidden] {
+    display: none;
+}
+
 .browser-context {
     display: flex;
     align-items: center;

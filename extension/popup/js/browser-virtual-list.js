@@ -42,6 +42,7 @@ function createBrowserVirtualList(container) {
         const active = entry.slot.contains(document.activeElement)
         const next = entry.render(entry.item, entry.index)
         entry.node = next
+        entry.slot.style.height = "auto"
         entry.slot.replaceChildren(next)
         if (active) next.querySelector("button, input, select")?.focus()
         requestAnimationFrame(() => {
@@ -131,7 +132,7 @@ function createBrowserVirtualList(container) {
                 }
                 observer?.observe(slot)
             } else {
-                const changed = entry.version !== version
+                const changed = entry.version !== version || entry.index !== index
                 entry.item = item
                 entry.index = index
                 entry.render = render
@@ -163,6 +164,7 @@ function createBrowserVirtualList(container) {
         const wanted = keys ? new Set(Array.isArray(keys) ? keys.map(String) : [String(keys)]) : null
         for (const entry of entries) {
             if (!entry.rendered || !entry.patch || (wanted && !wanted.has(entry.key))) continue
+            entry.slot.style.height = "auto"
             entry.patch(entry.node, entry.item, entry.index)
             requestAnimationFrame(() => {
                 if (!entry.rendered) return

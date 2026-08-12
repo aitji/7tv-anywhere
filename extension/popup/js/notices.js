@@ -1,51 +1,69 @@
 function renderNotice() {
     const entries = []
 
-    if (initStatusState && initStatusState.phase !== "ready") {
+    if (initStatusState && initStatusState.phase !== "ready" && !initStatusState.acknowledged) {
         entries.push({
+            key: "init-status",
+            storageKey: "initStatus",
             message: initStatusState.message,
             kind: initStatusState.phase === "error" ? "error" : "info",
-            loading: ["resolving", "resolving-default", "loading-emotes", "loading"].includes(initStatusState.phase)
+            loading: ["resolving", "resolving-default", "loading-emotes", "loading"].includes(initStatusState.phase),
+            dismissible: initStatusState.phase === "error" && !initStatusState.acknowledged
         })
     }
-    if (emoteLoadStatusState && ["loading", "error"].includes(emoteLoadStatusState.phase)) {
+    if (emoteLoadStatusState && ["loading", "error"].includes(emoteLoadStatusState.phase)
+        && !emoteLoadStatusState.acknowledged) {
         entries.push({
+            key: "emote-load-status",
+            storageKey: "emoteLoadStatus",
             message: emoteLoadStatusState.message,
             kind: emoteLoadStatusState.phase === "error" ? "error" : "info",
-            loading: emoteLoadStatusState.phase === "loading"
+            loading: emoteLoadStatusState.phase === "loading",
+            dismissible: emoteLoadStatusState.phase === "error" && !emoteLoadStatusState.acknowledged
         })
     }
     if (isUnsupportedSite) {
         entries.push({
+            key: "site-unsupported",
             message: "The maintainer disables this page by default, but you can still enable it; some features may not work as expected",
-            kind: "warning"
+            kind: "warning",
+            dismissible: true
         })
         if (siteNote) entries.push({
+            key: "site-note",
             message: `${siteNote}`,
             kind: "warning",
-            emotes: true
+            emotes: true,
+            dismissible: true
         })
     } else if (siteNote) {
         entries.push({
+            key: "site-supported",
             message: "The maintainer left a note for this page; it should work, but you can still disable it if needed",
-            kind: "info"
+            kind: "info",
+            dismissible: true
         })
         entries.push({
+            key: "site-note",
             message: `${siteNote}`,
             kind: "info",
-            emotes: true
+            emotes: true,
+            dismissible: true
         })
     }
     if (updateNoticeState) {
         entries.push({
+            key: "update",
             message: `Update available: v${updateNoticeState.latestVersion} (you're on v${updateNoticeState.currentVersion})!`,
             kind: "warning",
-            link: "https://github.com/aitji/7tv-anywhere/releases"
+            link: "https://github.com/aitji/7tv-anywhere/releases",
+            dismissible: true
         })
     }
 
     const uniqueEntries = entries.filter((entry, index) =>
-        entry.message && entries.findIndex(other => other.message === entry.message) === index
+        entry.message && !dismissedNotice.has(entry.key)
+        && entries.findIndex(other => other.message === entry.message) === index
     )
     noticeText.replaceChildren(...uniqueEntries.map(renderNoticeRow))
     noticeBanner.classList.toggle("hidden", !uniqueEntries.length)
@@ -76,7 +94,28 @@ function renderNoticeRow(entry) {
         link.textContent = "View"
         row.appendChild(link)
     }
+    if (entry.dismissible) {
+        const dismiss = document.createElement("button")
+        dismiss.className = "notice-dismiss"
+        dismiss.type = "button"
+        dismiss.title = "Dismiss"
+        dismiss.setAttribute("aria-label", "Dismiss notification")
+        dismiss.textContent = "×"
+        dismiss.addEventListener("click", () => dismissNotice(entry))
+        row.appendChild(dismiss)
+    }
     return row
+}
+
+async function dismissNotice(entry) {
+    dismissedNotice.add(entry.key)
+    renderNotice()
+    if (!entry.storageKey) return
+    const state = await ext.storage.local.get(entry.storageKey)
+    const status = state[entry.storageKey]
+    if (status) await ext.storage.local.set({
+        [entry.storageKey]: { ...status, acknowledged: true, acknowledgedAt: Date.now() }
+    })
 }
 
 function createNoticeIcon(kind) {
@@ -147,7 +186,7 @@ function renderChannelStatus() {
     const remaining = maxAge === null
         ? null
         : maxAge - (now - (status.updatedAt || now))
-    const visible = !!status && (remaining === null || remaining > 0)
+    const visible = !!status && !status.acknowledged && (remaining === null || remaining > 0)
     const busy = visible && status.phase === "resolving"
 
     channelStatus.classList.toggle("hidden", !visible)
@@ -158,11 +197,24 @@ function renderChannelStatus() {
     channelQueryInput.disabled = busy
     findSetsBtn.disabled = busy
     findSetsBtn.textContent = busy ? "Working..." : "Find"
+    channelStatusDismissBtn.hidden = !visible || busy
 
     if (visible && remaining !== null)
-        channelStatusHideTimer = setTimeout(() => {
-            channelOperationState = null
-            renderChannelStatus()
-            updateSaveBar()
-        }, remaining + 20)
+        channelStatusHideTimer = setTimeout(dismissChannelStatus, remaining + 20)
+    else if (status && !status.acknowledged && remaining !== null && remaining <= 0)
+        channelStatusHideTimer = setTimeout(dismissChannelStatus, 0)
 }
+
+async function dismissChannelStatus() {
+    const current = channelOperationState
+    channelOperationState = null
+    renderChannelStatus()
+    updateSaveBar()
+    const { channelOperation } = await ext.storage.local.get("channelOperation")
+    if (!channelOperation || current && current.id && channelOperation.id !== current.id) return
+    await ext.storage.local.set({
+        channelOperation: { ...channelOperation, acknowledged: true, acknowledgedAt: Date.now() }
+    })
+}
+
+channelStatusDismissBtn.addEventListener("click", dismissChannelStatus)

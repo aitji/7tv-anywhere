@@ -28,7 +28,13 @@ function serializeComparableState(state) {
         excludedEmote,
         emoteSize: cleanEmoteSize(state.emoteSize),
         matchPriority: cleanMatchPriority(state.matchPriority),
-        renderMode: cleanRenderMode(state.renderMode)
+        renderMode: cleanRenderMode(state.renderMode),
+        zeroWidthEmote: state.zeroWidthEmote !== false,
+        zeroWidthText: state.zeroWidthText === true,
+        emoteHoverStyle: cleanHoverStyle(state.emoteHoverStyle),
+        emoteHoverLayout: cleanHoverLayout(state.emoteHoverLayout),
+        emoteHoverTemplate: cleanHoverTemplate(state.emoteHoverTemplate),
+        emoteHoverDelay: cleanHoverDelay(state.emoteHoverDelay)
     }))
 }
 
@@ -59,6 +65,12 @@ function updateSaveBar() {
                 caseSensitive: draft.caseSensitive === true,
                 matchPriority: cleanMatchPriority(draft.matchPriority),
                 renderMode: cleanRenderMode(draft.renderMode),
+                zeroWidthEmote: draft.zeroWidthEmote !== false,
+                zeroWidthText: draft.zeroWidthText === true,
+                emoteHoverStyle: cleanHoverStyle(draft.emoteHoverStyle),
+                emoteHoverLayout: cleanHoverLayout(draft.emoteHoverLayout),
+                emoteHoverTemplate: cleanHoverTemplate(draft.emoteHoverTemplate),
+                emoteHoverDelay: cleanHoverDelay(draft.emoteHoverDelay),
                 updatedAt: Date.now()
             }
         }).catch(() => { })

@@ -130,7 +130,8 @@ body {
 
 .tab-btn,
 button,
-input[type=text] {
+input[type=text],
+textarea {
     font-family: inherit
 }
 

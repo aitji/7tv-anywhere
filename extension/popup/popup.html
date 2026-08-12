@@ -75,6 +75,8 @@
                     <div id="channel-status" class="channel-status hidden" role="status" aria-live="polite">
                         <span id="channel-status-spinner" class="status-spinner" aria-hidden="true" hidden></span>
                         <span id="find-hint"></span>
+                        <button id="channel-status-dismiss" class="status-dismiss" type="button"
+                            aria-label="Dismiss channel status" title="Dismiss" hidden>×</button>
                     </div>
                 </section>
 
@@ -181,119 +183,215 @@
 
         <!-- SETTINGS TAB -->
         <section id="panel-settings" class="tab-panel" hidden>
-            <p class="tab-intro">Back up your setup or control how often
-                7TV Anywhere checks GitHub for a new version</p>
+            <label class="settings-search" for="settings-search">
+                <span>Search settings</span>
+                <input type="text" id="settings-search" placeholder="Try overlay, hover, mobile..." autocomplete="off">
+            </label>
+            <div class="settings-category" role="tablist" aria-label="Settings section">
+                <button class="settings-category-btn is-active" type="button" data-settings-group="emotes"
+                    role="tab" aria-selected="true">Emotes</button>
+                <button class="settings-category-btn" type="button" data-settings-group="extension"
+                    role="tab" aria-selected="false">Extension</button>
+            </div>
+            <p id="settings-search-summary" class="hint settings-search-summary" role="status"></p>
 
-            <section class="field settings-card">
-                <div class="section-head">
-                    <span class="section-label">Update checks</span>
-                    <span id="update-last-checked" class="hint inline-hint">Never checked</span>
-                </div>
-                <label class="check-row settings-check-row">
-                    <input type="checkbox" id="auto-check-updates" checked>
-                    <span>Check automatically</span>
-                </label>
-                <label class="settings-label" for="update-check-interval">Check interval</label>
-                <select id="update-check-interval">
-                    <option value="24">Daily</option>
-                    <option value="168" selected>Weekly</option>
-                    <option value="720">Monthly</option>
-                </select>
-                <button id="check-update-now" class="btn-secondary btn-full">Check for update now</button>
-                <span id="update-check-status" class="hint" role="status"></span>
-            </section>
+            <div class="settings-group" data-settings-panel="emotes">
+                <p class="tab-intro">Control how emotes match, render, overlay, and explain themselves on hover</p>
 
-            <section class="field settings-card">
-                <span class="section-label">Emote matching</span>
+                <section class="field settings-card" data-setting-card
+                    data-search="render size scale performance speed cpu page scan mobile reload refresh">
+                    <div class="settings-card-head">
+                        <span class="section-label">Rendering</span>
+                        <button class="settings-help-btn" type="button" data-settings-help="rendering"
+                            aria-label="Rendering help">?</button>
+                    </div>
+                    <label class="settings-label" for="render-mode">Page scanning</label>
+                    <select id="render-mode">
+                        <option value="light">Light, prioritize new text</option>
+                        <option value="balanced" selected>Balanced, recommended</option>
+                        <option value="full">Full, scan more page content</option>
+                    </select>
+                    <p class="hint settings-copy">Use Light on slower phones. Full can find emotes inside more complex
+                        pages, with higher CPU use</p>
+                    <span id="render-mode-status" class="hint" role="status"></span>
 
+                    <div class="section-head settings-size-head">
+                        <label class="section-label" for="emote-size">Emote size</label>
+                        <span id="emote-size-value" class="size-value">2x</span>
+                    </div>
+                    <input type="range" id="emote-size" min="1" max="4" value="2">
+                    <span id="emote-size-status" class="hint" role="status"></span>
 
-                <label class="check-row settings-check-row">
-                    <input type="checkbox" id="case-sensitive">
-                    <span>Case-sensitive emote names</span>
-                </label>
-                <p class="hint settings-copy">Off by default, so <b>letsgo</b> can match <b>LETSGO</b></p>
-                <span id="case-sensitive-status" class="hint" role="status"></span>
+                    <button id="reload-emotes" class="btn-secondary btn-full">
+                        <svg class="icon" viewBox="0 0 16 16" fill="none">
+                            <path d="M13.5 8a5.5 5.5 0 1 1-1.66-3.94M13.5 2v3.5H10" stroke="currentColor"
+                                stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                        Reload emotes from 7TV
+                    </button>
+                    <span class="hint" id="emote-count"></span>
+                    <span class="hint error" id="reload-warning"></span>
+                </section>
 
+                <section class="field settings-card" data-setting-card
+                    data-search="match matching name case sensitive duplicate priority channel order overlap">
+                    <div class="settings-card-head">
+                        <span class="section-label">Name matching</span>
+                        <button class="settings-help-btn" type="button" data-settings-help="matching"
+                            aria-label="Name matching help">?</button>
+                    </div>
+                    <label class="check-row settings-check-row">
+                        <input type="checkbox" id="case-sensitive">
+                        <span>Require exact letter case</span>
+                    </label>
+                    <p class="hint settings-copy">Off: <b>letsgo</b> may match <b>LETSGO</b>. On: only the exact name
+                        matches</p>
+                    <span id="case-sensitive-status" class="hint" role="status"></span>
 
-                <label class="settings-label" for="match-priority">When names overlap</label>
-                <select id="match-priority">
-                    <option value="channel" selected>Use channel order first</option>
-                    <option value="case">Use closest letter case first</option>
-                </select>
-                <p class="hint settings-copy">Channel order means higher channels and sets win. Closest letter case
-                    means <b>clap</b> prefers <b>Clap</b> before channel order breaks ties</p>
-                <span id="match-priority-status" class="hint" role="status"></span>
+                    <label class="settings-label" for="match-priority">Duplicate emote names</label>
+                    <select id="match-priority">
+                        <option value="channel" selected>Prefer higher channel and set</option>
+                        <option value="case">Prefer closest letter case</option>
+                    </select>
+                    <p class="hint settings-copy">Used only when more than one loaded emote has the same name</p>
+                    <span id="match-priority-status" class="hint" role="status"></span>
+                </section>
 
+                <section class="field settings-card" data-setting-card
+                    data-search="overlay stack zero width zerowidth text word widealert connect adjacent gap spacing twitch">
+                    <div class="settings-card-head">
+                        <span class="section-label">Overlays and spacing</span>
+                        <button class="settings-help-btn" type="button" data-settings-help="overlays"
+                            aria-label="Overlay help">?</button>
+                    </div>
+                    <label class="check-row settings-check-row">
+                        <input type="checkbox" id="zero-width-emote" checked>
+                        <span>Stack 7TV overlay emotes</span>
+                    </label>
+                    <p class="hint settings-copy">Draws a zero-width emote over the emote before it. Spaces between
+                        emotes are accepted</p>
+                    <span id="zero-width-emote-status" class="hint" role="status"></span>
 
-                <label class="settings-label" for="render-mode">Page performance</label>
-                <select id="render-mode">
-                    <option value="light">Lighter, best for many emotes or mobile</option>
-                    <option value="balanced" selected>Balanced</option>
-                    <option value="full">Full page scan</option>
-                </select>
-                <p class="hint settings-copy">Lighter mode focuses on live/new text and skips heavier shadow-root scans.
-                    Full mode checks more of the page, but can cost more CPU</p>
-                <span id="render-mode-status" class="hint" role="status"></span>
+                    <label class="check-row settings-check-row">
+                        <input type="checkbox" id="zero-width-text">
+                        <span>Allow overlays on text</span>
+                    </label>
+                    <p class="hint settings-copy">Experimental. A standalone overlay uses no text width and may cover
+                        nearby letters, like Twitch chat</p>
+                    <span id="zero-width-text-status" class="hint" role="status"></span>
+                </section>
 
-                <div class="section-head settings-size-head">
-                    <span class="section-label">Emote size</span>
-                    <span id="emote-size-value" class="size-value">2x</span>
-                </div>
-                <input type="range" id="emote-size" min="1" max="4" value="2">
-                <span id="emote-size-status" class="hint" role="status"></span>
+                <section class="field settings-card" data-setting-card
+                    data-search="hover card tooltip title popup delay template original emote channel name">
+                    <div class="settings-card-head">
+                        <span class="section-label">Hover details</span>
+                        <button class="settings-help-btn" type="button" data-settings-help="hover"
+                            aria-label="Hover details help">?</button>
+                    </div>
+                    <label class="settings-label" for="emote-hover-style">Hover display</label>
+                    <select id="emote-hover-style">
+                        <option value="card" selected>7TV-style card</option>
+                        <option value="title">Small browser tooltip</option>
+                    </select>
 
-                <button id="reload-emotes" class="btn-secondary btn-full">
-                    <svg class="icon" viewBox="0 0 16 16" fill="none">
-                        <path d="M13.5 8a5.5 5.5 0 1 1-1.66-3.94M13.5 2v3.5H10" stroke="currentColor" stroke-width="1.3"
-                            stroke-linecap="round" stroke-linejoin="round" />
-                    </svg>
-                    Reload emotes
-                </button>
-                <span class="hint" id="emote-count"></span>
-                <span class="hint error" id="reload-warning"></span>
-            </section>
+                    <label class="settings-label" for="emote-hover-layout">Card preview position</label>
+                    <select id="emote-hover-layout">
+                        <option value="right" selected>Right of details</option>
+                        <option value="left">Left of details</option>
+                        <option value="top">Above details</option>
+                        <option value="hidden">Hide preview image</option>
+                    </select>
 
-            <section class="field settings-card">
-                <span class="section-label">Compatibility rules</span>
-                <p class="hint settings-copy">Refresh the maintainer's supported-site notes without reinstalling</p>
-                <p id="site-rules-summary" class="settings-data-copy"></p>
-                <button id="refresh-site-rules" class="btn-secondary btn-full">Refresh site rules</button>
-                <span id="site-rules-status" class="hint" role="status"></span>
-            </section>
+                    <label class="settings-label" for="emote-hover-template">Displayed text</label>
+                    <textarea id="emote-hover-template" maxlength="400" rows="1"
+                        spellcheck="false">{original} ({emote}@{channel})</textarea>
+                    <p class="hint settings-copy">Placeholders: <b>{original}</b>, <b>{emote}</b>, <b>{channel}</b></p>
 
-            <section class="field settings-card">
-                <span class="section-label">Backup and restore</span>
-                <p class="hint settings-copy">Exports only extension settings no browsing data or sensitive information
-                </p>
-                <div class="settings-actions">
-                    <button id="export-settings" class="btn-secondary">Export</button>
-                    <button id="import-settings" class="btn-secondary">Import</button>
-                </div>
-                <span id="settings-status" class="hint" role="status"></span>
-            </section>
+                    <div class="section-head settings-size-head">
+                        <label class="section-label" for="emote-hover-delay">Wait before showing</label>
+                        <span id="emote-hover-delay-value" class="size-value">350 ms</span>
+                    </div>
+                    <input type="range" id="emote-hover-delay" min="0" max="1500" step="50" value="350">
+                    <span id="emote-hover-status" class="hint" role="status"></span>
+                </section>
+            </div>
 
+            <div class="settings-group" data-settings-panel="extension" hidden>
+                <p class="tab-intro">Updates, site compatibility, backups, and local extension data</p>
 
-            <section class="field settings-card">
-                <span class="section-label">Extension data</span>
-                <div class="settings-data-list">
-                    <div><span>Version</span><strong id="data-version"></strong></div>
-                    <div><span>Loaded</span><strong id="data-emotes"></strong></div>
-                    <div><span>Configured</span><strong id="data-channels"></strong></div>
-                    <div><span>Blocked emotes</span><strong id="data-excluded"></strong></div>
-                    <div><span>Matching</span><strong id="data-matching"></strong></div>
-                    <div><span>Performance</span><strong id="data-performance"></strong></div>
-                    <div><span>Draft</span><strong id="data-draft"></strong></div>
-                    <div><span>Local storage</span><strong id="data-storage">Checking...</strong></div>
-                </div>
-            </section>
+                <section class="field settings-card" data-setting-card
+                    data-search="update check github version daily weekly monthly automatic">
+                    <div class="section-head">
+                        <span class="section-label">Update checks</span>
+                        <span id="update-last-checked" class="hint inline-hint">Never checked</span>
+                    </div>
+                    <label class="check-row settings-check-row">
+                        <input type="checkbox" id="auto-check-updates" checked>
+                        <span>Check automatically</span>
+                    </label>
+                    <label class="settings-label" for="update-check-interval">Check interval</label>
+                    <select id="update-check-interval">
+                        <option value="24">Daily</option>
+                        <option value="168" selected>Weekly</option>
+                        <option value="720">Monthly</option>
+                    </select>
+                    <button id="check-update-now" class="btn-secondary btn-full">Check for update now</button>
+                    <span id="update-check-status" class="hint" role="status"></span>
+                </section>
 
+                <section class="field settings-card" data-setting-card
+                    data-search="site compatibility rules supported unsupported refresh maintainer">
+                    <div class="settings-card-head">
+                        <span class="section-label">Maintainer guidance</span>
+                        <button class="settings-help-btn" type="button" data-settings-help="guidance"
+                            aria-label="Maintainer guidance help">?</button>
+                    </div>
+                    <label class="check-row settings-check-row">
+                        <input type="checkbox" id="maintainer-guidance" checked>
+                        <span>Download compatibility notes and recommendations</span>
+                    </label>
+                    <p class="hint settings-copy">Turn this off to stop background requests for maintainer guidance.
+                        7TV emotes and update checks are separate</p>
+                    <p id="site-rules-summary" class="settings-data-copy"></p>
+                    <button id="refresh-site-rules" class="btn-secondary btn-full">Refresh site rules</button>
+                    <span id="site-rules-status" class="hint" role="status"></span>
+                </section>
 
-            <section class="field settings-card">
-                <span class="section-label">Setup recovery</span>
-                <p class="hint settings-copy">Clear a stuck initialization state and rebuild the default channel setup
-                </p>
-                <button id="force-reinitialize" class="btn-danger btn-full">Force reinitialize</button>
-            </section>
+                <section class="field settings-card" data-setting-card
+                    data-search="backup restore export import settings json transfer">
+                    <span class="section-label">Backup and restore</span>
+                    <p class="hint settings-copy">Exports extension settings only, with no browsing data</p>
+                    <div class="settings-actions">
+                        <button id="export-settings" class="btn-secondary">Export</button>
+                        <button id="import-settings" class="btn-secondary">Import</button>
+                    </div>
+                    <span id="settings-status" class="hint" role="status"></span>
+                </section>
+
+                <section class="field settings-card" data-setting-card
+                    data-search="extension data storage version loaded configured blocked draft performance">
+                    <span class="section-label">Extension data</span>
+                    <div class="settings-data-list">
+                        <div><span>Version</span><strong id="data-version"></strong></div>
+                        <div><span>Loaded</span><strong id="data-emotes"></strong></div>
+                        <div><span>Configured</span><strong id="data-channels"></strong></div>
+                        <div><span>Blocked emotes</span><strong id="data-excluded"></strong></div>
+                        <div><span>Matching</span><strong id="data-matching"></strong></div>
+                        <div><span>Performance</span><strong id="data-performance"></strong></div>
+                        <div><span>Draft</span><strong id="data-draft"></strong></div>
+                        <div><span>Local storage</span><strong id="data-storage">Checking...</strong></div>
+                    </div>
+                </section>
+
+                <section class="field settings-card" data-setting-card
+                    data-search="setup recovery reset reinitialize clear stuck default">
+                    <span class="section-label">Setup recovery</span>
+                    <p class="hint settings-copy">Clear a stuck setup and rebuild the default channel configuration</p>
+                    <button id="force-reinitialize" class="btn-danger btn-full">Force reinitialize</button>
+                </section>
+            </div>
+
+            <p id="settings-empty" class="empty-state" hidden>No settings match that search</p>
         </section>
     </main>
 
@@ -334,6 +432,19 @@
         </div>
     </div>
 
+    <div id="settings-help-overlay" class="confirm-overlay" hidden>
+        <div class="confirm-box settings-help-box" role="dialog" aria-modal="true"
+            aria-labelledby="settings-help-title" aria-describedby="settings-help-body">
+            <div class="settings-help-head">
+                <div class="confirm-title" id="settings-help-title"></div>
+                <button id="settings-help-x" class="settings-help-x" type="button" aria-label="Close help">×</button>
+            </div>
+            <div class="confirm-body" id="settings-help-body"></div>
+            <div id="settings-help-examples" class="settings-help-examples"></div>
+            <button id="settings-help-close" class="btn-primary btn-full" type="button">Got it</button>
+        </div>
+    </div>
+
     <script src="js/state.js"></script>
     <script src="js/lifecycle.js"></script>
     <script src="js/notices.js"></script>
@@ -348,6 +459,7 @@
     <script src="js/emote-browser-set-dialog.js"></script>
     <script src="js/emote-browser.js"></script>
     <script src="js/settings.js"></script>
+    <script src="js/settings-view.js"></script>
     <script src="js/entry.js"></script>
 </body>
 

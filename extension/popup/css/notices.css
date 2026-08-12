@@ -75,6 +75,39 @@
     flex-shrink: 0
 }
 
+.notice-dismiss,
+.status-dismiss {
+    display: grid;
+    place-items: center;
+    flex: 0 0 26px;
+    width: 26px;
+    height: 26px;
+    margin: -5px -6px -5px 0;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    color: currentColor;
+    background: transparent;
+    font: 700 17px/1 system-ui, sans-serif;
+    cursor: pointer;
+}
+
+.notice-dismiss[hidden],
+.status-dismiss[hidden] {
+    display: none;
+}
+
+.notice-dismiss:hover,
+.status-dismiss:hover {
+    background: rgba(255, 255, 255, .08);
+}
+
+.notice-dismiss:focus-visible,
+.status-dismiss:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 1px;
+}
+
 .notice-emote {
     height: 20px;
     max-width: 80px;
@@ -97,9 +130,14 @@
     line-height: 1.4;
 }
 
-.channel-status span:last-child {
+.channel-status #find-hint {
     flex: 1;
     min-width: 0
+}
+
+.channel-status .status-dismiss {
+    flex: 0 0 26px;
+    margin-left: auto;
 }
 
 .channel-status .status-spinner {

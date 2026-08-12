@@ -24,7 +24,8 @@ async function getDraft() {
     const saved = await ext.storage.local.get([
         "pendingDraft", "customSets", "channelSettings",
         "excludedEmote", "emoteSize", "caseSensitive",
-        "matchPriority", "renderMode"
+        "matchPriority", "renderMode", "zeroWidthEmote", "zeroWidthText",
+        "emoteHoverStyle", "emoteHoverLayout", "emoteHoverTemplate", "emoteHoverDelay"
     ])
     return fillDraft(saved.pendingDraft, saved)
 }
@@ -36,7 +37,8 @@ async function saveDraft(input) {
             const savedBefore = await ext.storage.local.get([
                 "customSets", "emoteSet", "excludedEmote",
                 "emoteSize", "caseSensitive", "matchPriority",
-                "renderMode", "lastReWarn"
+                "renderMode", "zeroWidthEmote", "zeroWidthText",
+                "emoteHoverStyle", "emoteHoverLayout", "emoteHoverTemplate", "emoteHoverDelay", "lastReWarn"
             ])
             const state = fillDraft(validDraft(input) ? input : await getDraft(), savedBefore)
             if (!validDraft(state)) throw new Error("The saved draft is invalid...")
@@ -48,6 +50,12 @@ async function saveDraft(input) {
                 caseSensitive: state.caseSensitive === true,
                 matchPriority: cleanMatchPriority(state.matchPriority),
                 renderMode: cleanRenderMode(state.renderMode),
+                zeroWidthEmote: state.zeroWidthEmote !== false,
+                zeroWidthText: state.zeroWidthText === true,
+                emoteHoverStyle: cleanHoverStyle(state.emoteHoverStyle),
+                emoteHoverLayout: cleanHoverLayout(state.emoteHoverLayout),
+                emoteHoverTemplate: cleanHoverTemplate(state.emoteHoverTemplate),
+                emoteHoverDelay: cleanHoverDelay(state.emoteHoverDelay),
                 isInitDone: true
             })
             await ext.storage.local.remove("pendingDraft")

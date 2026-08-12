@@ -251,14 +251,14 @@
         if (!ctx) return
         ctx.el.focus()
 
-        if (ctx.kind === "field") ctx.el.setSelectionRange(ctx.start, ctx.end)
-        else {
+        if (ctx.kind === "editable") {
             let range = ctx.range
             if (!range || !range.startContainer || !range.startContainer.isConnected) {
                 const current = isMatch(ctx.el)
                 if (!current || current.kind !== "editable") return closeDropdown()
                 range = current.range
             }
+            ctx.range = range
             const sel = window.getSelection()
             sel.removeAllRanges()
             sel.addRange(range)
@@ -268,8 +268,8 @@
             ? `${emote.name} :${ctx.query}`
             : `${emote.name} `
 
-        const insert = document.execCommand("insertText", false, rep)
-        if (!insert) manualInsert(ctx, rep)
+        if (ctx.kind === "field") manualInsert(ctx, rep)
+        else if (!document.execCommand("insertText", false, rep)) manualInsert(ctx, rep)
 
         if (!keepSearch) closeDropdown()
     }
@@ -334,7 +334,7 @@
 
             const img = document.createElement("img")
             img.src = emote.url
-            img.alt = emote.name
+            img.alt = emote.name ?? '?'
             item.appendChild(img)
 
             const copy = document.createElement("div")

@@ -23,6 +23,7 @@ const findSetsBtn = $("find-sets")
 const channelStatus = $("channel-status")
 const channelStatusSpinner = $("channel-status-spinner")
 const findHint = $("find-hint")
+const channelStatusDismissBtn = $("channel-status-dismiss")
 
 const channelsSummaryEl = $("channels-summary")
 const channelCardsEl = $("channel-cards")
@@ -81,10 +82,20 @@ const browserSetOverlayDiscardBtn = $("browser-set-overlay-discard")
 const autoCheckUpdatesInput = $("auto-check-updates")
 const caseSensitiveInput = $("case-sensitive")
 const caseSensitiveStatusEl = $("case-sensitive-status")
+const zeroWidthEmoteInput = $("zero-width-emote")
+const zeroWidthEmoteStatusEl = $("zero-width-emote-status")
+const zeroWidthTextInput = $("zero-width-text")
+const zeroWidthTextStatusEl = $("zero-width-text-status")
 const matchPrioritySelect = $("match-priority")
 const matchPriorityStatusEl = $("match-priority-status")
 const renderModeSelect = $("render-mode")
 const renderModeStatusEl = $("render-mode-status")
+const emoteHoverStyleSelect = $("emote-hover-style")
+const emoteHoverLayoutSelect = $("emote-hover-layout")
+const emoteHoverTemplateInput = $("emote-hover-template")
+const emoteHoverDelayInput = $("emote-hover-delay")
+const emoteHoverDelayValue = $("emote-hover-delay-value")
+const emoteHoverStatusEl = $("emote-hover-status")
 const siteRenderModeSelect = $("site-render-mode")
 const siteRenderModeStatusEl = $("site-render-mode-status")
 const updateCheckIntervalSelect = $("update-check-interval")
@@ -95,6 +106,7 @@ const exportSettingsBtn = $("export-settings")
 const importSettingsBtn = $("import-settings")
 const settingsStatusEl = $("settings-status")
 const refreshSiteRulesBtn = $("refresh-site-rules")
+const maintainerGuidanceInput = $("maintainer-guidance")
 const forceReinitializeBtn = $("force-reinitialize")
 const siteRulesSummaryEl = $("site-rules-summary")
 const siteRulesStatusEl = $("site-rules-status")
@@ -106,6 +118,19 @@ const dataMatchingEl = $("data-matching")
 const dataPerformanceEl = $("data-performance")
 const dataDraftEl = $("data-draft")
 const dataStorageEl = $("data-storage")
+const settingsSearchInput = $("settings-search")
+const settingsSearchSummaryEl = $("settings-search-summary")
+const settingsEmptyEl = $("settings-empty")
+const settingsCategoryBtns = document.querySelectorAll(".settings-category-btn")
+const settingsGroupEl = document.querySelectorAll("[data-settings-panel]")
+const settingsCardEl = document.querySelectorAll("[data-setting-card]")
+const settingsHelpBtns = document.querySelectorAll("[data-settings-help]")
+const settingsHelpOverlay = $("settings-help-overlay")
+const settingsHelpTitleEl = $("settings-help-title")
+const settingsHelpBodyEl = $("settings-help-body")
+const settingsHelpExamplesEl = $("settings-help-examples")
+const settingsHelpCloseBtn = $("settings-help-close")
+const settingsHelpXBtn = $("settings-help-x")
 
 let hostname = null
 let currentTabUrl = null
@@ -125,7 +150,13 @@ let savedSerialized = JSON.stringify({
     excludedEmote: [],
     emoteSize: 2,
     matchPriority: "channel",
-    renderMode: "balanced"
+    renderMode: "balanced",
+    zeroWidthEmote: true,
+    zeroWidthText: false,
+    emoteHoverStyle: "card",
+    emoteHoverLayout: "right",
+    emoteHoverTemplate: "{original} ({emote}@{channel})",
+    emoteHoverDelay: 350
 })
 let currentChannelId = null
 let popupReady = false
@@ -136,6 +167,7 @@ let emoteLoadStatusState = null
 let updateNoticeState = null
 let confirmAction = null
 let channelStatusHideTimer = null
+const dismissedNotice = new Set()
 
 let excludedEmote = []
 let emoteByName = new Map()
@@ -144,6 +176,7 @@ let caseSensitive = false
 let matchPriority = "channel"
 let renderMode = "balanced"
 let siteRenderModes = {}
+let maintainerGuidance = true
 let loadedEmoteList = []
 let browserMode = "channels"
 let browserPreviewBySet = new Map()
@@ -151,10 +184,21 @@ let browserPreviewLoading = new Set()
 let browserPreviewError = new Map()
 let browserSetSelection = null
 let exclusionMatcher = () => false
+let settingsGroup = "emotes"
 
 const cleanMatchPriority = (value) => value === "case" ? "case" : "channel"
 const cleanRenderMode = (value) => ["light", "balanced", "full"].includes(value) ? value : "balanced"
 const cleanEmoteSize = (value) => [1, 2, 3, 4].includes(Number(value)) ? Number(value) : 2
+const DEFAULT_HOVER_TEMPLATE = "{original} ({emote}@{channel})"
+const cleanHoverStyle = value => value === "title" ? "title" : "card"
+const cleanHoverLayout = value => ["right", "left", "top", "hidden"].includes(value) ? value : "right"
+const cleanHoverTemplate = value => String(value || DEFAULT_HOVER_TEMPLATE).trim().slice(0, 400) || DEFAULT_HOVER_TEMPLATE
+const cleanHoverDelay = value => Math.max(0, Math.min(1500, Number(value) || 0))
+const formatHoverSample = template => cleanHoverTemplate(template).replace(/\{(original|emote|channel)\}/g, (_, key) => ({
+    original: ":HUGGIES:",
+    emote: "HUGGIES",
+    channel: "vedal987"
+})[key])
 function cleanExcludedEmote(value) {
     if (!Array.isArray(value)) return []
     const out = []
@@ -221,7 +265,13 @@ function fillDraft(value, fallback = {}) {
             ? fallback.caseSensitive === true
             : src.caseSensitive === true,
         matchPriority: cleanMatchPriority(src.matchPriority || fallback.matchPriority),
-        renderMode: cleanRenderMode(src.renderMode || fallback.renderMode)
+        renderMode: cleanRenderMode(src.renderMode || fallback.renderMode),
+        zeroWidthEmote: src.zeroWidthEmote === undefined ? fallback.zeroWidthEmote !== false : src.zeroWidthEmote !== false,
+        zeroWidthText: src.zeroWidthText === undefined ? fallback.zeroWidthText === true : src.zeroWidthText === true,
+        emoteHoverStyle: cleanHoverStyle(src.emoteHoverStyle || fallback.emoteHoverStyle),
+        emoteHoverLayout: cleanHoverLayout(src.emoteHoverLayout || fallback.emoteHoverLayout),
+        emoteHoverTemplate: cleanHoverTemplate(src.emoteHoverTemplate || fallback.emoteHoverTemplate),
+        emoteHoverDelay: cleanHoverDelay(src.emoteHoverDelay ?? fallback.emoteHoverDelay ?? 350)
     }
 }
 
@@ -237,6 +287,13 @@ function syncDraftGlobals() {
     caseSensitiveInput.checked = caseSensitive
     matchPrioritySelect.value = matchPriority
     renderModeSelect.value = renderMode
+    zeroWidthEmoteInput.checked = draft.zeroWidthEmote !== false
+    zeroWidthTextInput.checked = draft.zeroWidthText === true
+    emoteHoverStyleSelect.value = cleanHoverStyle(draft.emoteHoverStyle)
+    emoteHoverLayoutSelect.value = cleanHoverLayout(draft.emoteHoverLayout)
+    emoteHoverTemplateInput.value = cleanHoverTemplate(draft.emoteHoverTemplate)
+    emoteHoverDelayInput.value = cleanHoverDelay(draft.emoteHoverDelay)
+    emoteHoverDelayValue.textContent = `${emoteHoverDelayInput.value} ms`
 }
 
 function setPopupEmote(emote) {

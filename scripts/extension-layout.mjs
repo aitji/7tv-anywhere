@@ -1,5 +1,6 @@
 export const backgroundModules = [
     "background/00-core.js",
+    "background/05-site-rules.js",
     "background/10-runtime.js",
     "background/20-drafts.js",
     "background/30-emotes.js",
@@ -23,6 +24,7 @@ export const popupScripts = [
     "js/emote-browser-set-dialog.js",
     "js/emote-browser.js",
     "js/settings.js",
+    "js/settings-view.js",
     "js/entry.js"
 ]
 

@@ -30,6 +30,7 @@
     ]))
 
     const WORD_RE = /[A-Za-z0-9_]+/g
+    const DEFAULT_HOVER_TEMPLATE = "{original} ({emote}@{channel})"
     const MODE = Object.freeze({
         light: { maxNodeLength: 4000, chunkSize: 80, observeShadow: false, initialScan: false },
         balanced: { maxNodeLength: 12000, chunkSize: 160, observeShadow: true, initialScan: true },
@@ -42,9 +43,12 @@
     let matchPriority = "channel"
     let renderMode = "balanced"
     let renderCfg = MODE.balanced
+    let zeroWidthEmote = true
+    let zeroWidthText = false
     let minNameLength = Infinity
     let maxNameLength = 0
     let firstChar = new Set()
+    let pickCache = new Map()
     let isActive = false
     let observer = null
     let observedRoots = new WeakSet()
@@ -55,6 +59,24 @@
 
     const pendingRoot = new Set()
     const ownNode = new WeakSet()
+    shared.emoteInfo ||= new WeakMap()
+    shared.hoverCfg ||= {
+        style: "card",
+        layout: "right",
+        template: DEFAULT_HOVER_TEMPLATE,
+        delay: 350
+    }
+    shared.formatEmoteHover ||= (template, info) => {
+        const emotes = Array.isArray(info && info.emotes) ? info.emotes : []
+        const names = emotes.map(item => item.name).filter(Boolean).join(" + ")
+        const channels = [...new Set(emotes.map(item => item.channelName).filter(Boolean))].join(" + ")
+        const value = String(template || DEFAULT_HOVER_TEMPLATE).replace(/\{(original|emote|channel)\}/g, (_, key) => ({
+            original: String(info && info.original || "").trim(),
+            emote: names,
+            channel: channels || "Global 7TV"
+        })[key])
+        return value.trim() || names || String(info && info.original || "").trim()
+    }
     let scheduled = false
 
     setTimeout(init, 0)
@@ -81,7 +103,10 @@
         if ("enabled" in changes || "disabledSites" in changes || "enabledUnsupportedSites" in changes || "siteCfg" in changes) await evlActive()
         if (isActive && ("excludedEmote" in changes || "emoteSet" in changes
             || "emoteSize" in changes || "caseSensitive" in changes || "matchPriority" in changes
-            || "renderMode" in changes || "siteRenderModes" in changes)) {
+            || "renderMode" in changes || "siteRenderModes" in changes || "zeroWidthEmote" in changes
+            || "zeroWidthText" in changes
+            || "emoteHoverStyle" in changes || "emoteHoverLayout" in changes
+            || "emoteHoverTemplate" in changes || "emoteHoverDelay" in changes)) {
             await refreshEmote()
         }
     }
@@ -166,7 +191,10 @@
         try {
             result = await Promise.all([
                 ext.runtime.sendMessage({ type: "GET_EMOTES" }),
-                ext.storage.local.get(["excludedEmote", "emoteSize", "caseSensitive", "matchPriority", "renderMode", "siteRenderModes"]),
+                ext.storage.local.get([
+                    "excludedEmote", "emoteSize", "caseSensitive", "matchPriority", "renderMode", "siteRenderModes",
+                    "zeroWidthEmote", "zeroWidthText", "emoteHoverStyle", "emoteHoverLayout", "emoteHoverTemplate", "emoteHoverDelay"
+                ]),
                 shared.getTopSite()
             ])
         } catch { return false }
@@ -178,7 +206,13 @@
             caseSensitive: matchCase = false,
             matchPriority: priorityMode = "channel",
             renderMode: mode = "balanced",
-            siteRenderModes = {}
+            siteRenderModes = {},
+            zeroWidthEmote: stackZeroWidth = true,
+            zeroWidthText: stackOnText = false,
+            emoteHoverStyle: hoverStyle = "card",
+            emoteHoverLayout: hoverLayout = "right",
+            emoteHoverTemplate: hoverTemplate = DEFAULT_HOVER_TEMPLATE,
+            emoteHoverDelay: hoverDelay = 350
         } = {}, site = {}] = result
 
         const nextSize = size || 2
@@ -211,6 +245,14 @@
             caseSensitive: nextCase,
             matchPriority: nextPriority,
             renderMode: nextMode,
+            zeroWidthEmote: stackZeroWidth !== false,
+            zeroWidthText: stackOnText === true,
+            hoverCfg: {
+                style: hoverStyle === "title" ? "title" : "card",
+                layout: ["right", "left", "top", "hidden"].includes(hoverLayout) ? hoverLayout : "right",
+                template: String(hoverTemplate || DEFAULT_HOVER_TEMPLATE).slice(0, 400),
+                delay: Math.max(0, Math.min(1500, Number(hoverDelay) || 0))
+            },
             minNameLength: Number.isFinite(min) ? min : Infinity,
             maxNameLength: max,
             firstChar: first
@@ -224,6 +266,10 @@
         matchPriority = loaded.matchPriority
         renderMode = loaded.renderMode
         renderCfg = MODE[renderMode]
+        zeroWidthEmote = loaded.zeroWidthEmote
+        zeroWidthText = loaded.zeroWidthText
+        pickCache = new Map()
+        shared.hoverCfg = loaded.hoverCfg
         minNameLength = loaded.minNameLength
         maxNameLength = loaded.maxNameLength
         firstChar = loaded.firstChar
@@ -280,14 +326,13 @@
 
     function observeOpenShadows(root) {
         if (!root) return
-        const elements = []
-        if (root.nodeType === Node.ELEMENT_NODE) elements.push(root)
-        if (root.querySelectorAll) elements.push(...root.querySelectorAll("*"))
-        for (const element of elements) {
-            if (!element.shadowRoot || observedRoots.has(element.shadowRoot)) continue
+        const observe = element => {
+            if (!element.shadowRoot || observedRoots.has(element.shadowRoot)) return
             observeRoot(element.shadowRoot)
             schProing(element.shadowRoot)
         }
+        if (root.nodeType === Node.ELEMENT_NODE) observe(root)
+        if (root.querySelectorAll) for (const element of root.querySelectorAll("*")) observe(element)
     }
 
     function stopObserving() {
@@ -451,9 +496,7 @@
     function buildFragment(text) {
         WORD_RE.lastIndex = 0
         let match
-        let lastIndex = 0
-        let found = false
-        const frag = document.createDocumentFragment()
+        const token = []
 
         while ((match = WORD_RE.exec(text)) !== null) {
             if (!canMatchWord(match[0])) continue
@@ -463,18 +506,47 @@
             let start = match.index
             let end = match.index + match[0].length
 
-            if (start > lastIndex && text[start - 1] === ":" && text[end] === ":") {
+            if (start > 0 && text[start - 1] === ":" && text[end] === ":") {
                 start -= 1
                 end += 1
             }
 
-            found = true
-            if (start > lastIndex) appendOwnText(frag, text.slice(lastIndex, start))
-            frag.appendChild(createEmoteImg(emote, text.slice(start, end)))
-            lastIndex = end
+            token.push({ emote, start, end, original: text.slice(start, end) })
         }
 
-        if (!found) return null
+        if (!token.length) return null
+        const group = []
+        for (const item of token) {
+            const previous = group[group.length - 1]
+            if (zeroWidthEmote && item.emote.zeroWidth && previous
+                && isInlineSpace(text.slice(previous.end, item.start))) {
+                previous.item.push(item)
+                previous.end = item.end
+            } else group.push({
+                start: item.start,
+                end: item.end,
+                item: [item],
+                textOverlay: zeroWidthEmote && zeroWidthText && item.emote.zeroWidth
+            })
+        }
+
+        let lastIndex = 0
+        let previous = null
+        const frag = document.createDocumentFragment()
+        for (const item of group) {
+            let sourceStart = item.start
+            const gap = text.slice(lastIndex, item.start)
+            if (item.textOverlay) {
+                while (sourceStart > lastIndex && isInlineSpaceChar(text[sourceStart - 1])) sourceStart--
+            } else if (previous && !previous.textOverlay && isInlineSpace(gap)) sourceStart = lastIndex
+
+            if (sourceStart > lastIndex) appendOwnText(frag, text.slice(lastIndex, sourceStart))
+            const original = text.slice(item.start, item.end)
+            const source = text.slice(sourceStart, item.end)
+            frag.appendChild(createEmoteStack(item.item, original, source, item.textOverlay))
+            lastIndex = item.end
+            previous = item
+        }
         if (lastIndex < text.length) appendOwnText(frag, text.slice(lastIndex))
         return frag
     }
@@ -485,6 +557,15 @@
         parent.appendChild(node)
     }
 
+    function isInlineSpace(value) {
+        for (let i = 0; i < value.length; i++) if (!isInlineSpaceChar(value[i])) return false
+        return true
+    }
+
+    function isInlineSpaceChar(char) {
+        return char === " " || char === "\t" || char === "\u00a0"
+    }
+
     function canMatchWord(word) {
         if (word.length < minNameLength || word.length > maxNameLength) return false
         const first = caseSensitive ? word[0] : word[0].toLowerCase()
@@ -492,10 +573,11 @@
     }
 
     function pickEmote(input) {
+        if (pickCache.has(input)) return pickCache.get(input)
         const key = caseSensitive ? input : input.toLowerCase()
         const variant = emoteMap.get(key)
-        if (!variant || !variant.length) return null
-        if (variant.length === 1) return variant[0]
+        if (!variant || !variant.length) return rememberPick(input, null)
+        if (variant.length === 1) return rememberPick(input, variant[0])
 
         let best = variant[0]
         let bestCase = caseFit(input, best.name)
@@ -512,7 +594,13 @@
                 bestCase = score
             }
         }
-        return best
+        return rememberPick(input, best)
+    }
+
+    function rememberPick(input, emote) {
+        if (pickCache.size >= 2048) pickCache.delete(pickCache.keys().next().value)
+        pickCache.set(input, emote)
+        return emote
     }
 
     function caseFit(input, name) {
@@ -522,51 +610,93 @@
         return score
     }
 
-    function createEmoteImg(emote, originalText) {
-        const img = document.createElement("img")
-        img.src = emote.url
-        img.alt = emote.name
-        img.title = emote.channelName ? `${emote.name} (${emote.channelName})` : emote.name
-        img.setAttribute("data-emoteanywhere-skip", "true")
-        img.setAttribute("data-emoteanywhere-rendered", "true")
-        img.dataset.emoteanywhereText = originalText
-        img.style.height = emoteSize <= 1 ? "1.2em" : "28px"
-        img.style.verticalAlign = "bottom"
-        img.style.display = "inline-block"
-        img.style.setProperty("margin-top", "0px", "important")
-        img.style.setProperty("margin-bottom", "0px", "important")
+    function createEmoteStack(items, originalText, sourceText = originalText, textOverlay = false) {
+        const stack = document.createElement("span")
+        const height = emoteSize <= 1 ? "1.2em" : "28px"
+        const info = {
+            original: originalText,
+            textOverlay,
+            emotes: items.map(item => ({
+                id: item.emote.id,
+                name: item.emote.name,
+                channelName: item.emote.channelName || "Global 7TV",
+                setName: item.emote.setName || "",
+                url: item.emote.url,
+                original: item.original,
+                zeroWidth: item.emote.zeroWidth === true
+            }))
+        }
+        const label = shared.formatEmoteHover(shared.hoverCfg.template, info)
+        stack.setAttribute("data-emoteanywhere-skip", "true")
+        stack.setAttribute("data-emoteanywhere-rendered", "true")
+        stack.setAttribute("role", "img")
+        stack.setAttribute("aria-label", label)
+        stack.dataset.emoteanywhereText = sourceText
+        if (textOverlay) stack.dataset.emoteanywhereTextOverlay = "true"
+        if (shared.hoverCfg.style === "title") stack.title = label
+        stack.style.setProperty("display", "inline-block", "important")
+        stack.style.setProperty("position", "relative", "important")
+        stack.style.setProperty("height", height, "important")
+        if (textOverlay) stack.style.setProperty("width", "0", "important")
+        stack.style.setProperty("line-height", "0", "important")
+        stack.style.setProperty("vertical-align", "bottom", "important")
+        stack.style.setProperty("margin-top", "0", "important")
+        stack.style.setProperty("margin-bottom", "0", "important")
+        shared.emoteInfo.set(stack, info)
 
-        img.addEventListener("error", () => {
-            if (!img.dataset.eaRetried) {
-                img.dataset.eaRetried = "1"
-                const url = new URL(emote.url, location.href)
-                url.searchParams.set("_ea_retry", String(Date.now()))
-                img.src = url.href
-                return
+        items.forEach((item, index) => {
+            const img = document.createElement("img")
+            img.src = item.emote.url
+            img.alt = sourceText
+            img.draggable = false
+            img.style.setProperty("display", "block", "important")
+            img.style.setProperty("height", height, "important")
+            img.style.setProperty("width", "auto", "important")
+            img.style.setProperty("max-width", "none", "important")
+            img.style.setProperty("margin", "0", "important")
+            if (index || textOverlay) {
+                img.style.setProperty("position", "absolute", "important")
+                img.style.setProperty("left", textOverlay ? "0" : "50%", "important")
+                img.style.setProperty("bottom", "0", "important")
+                img.style.setProperty("transform", "translateX(-50%)", "important")
+                img.style.setProperty("z-index", String(index), "important")
+                if (index) img.style.setProperty("pointer-events", "none", "important")
             }
-            if (img.isConnected) {
-                const fallback = document.createTextNode(originalText)
-                ownNode.add(fallback)
-                img.replaceWith(fallback)
-            }
+            img.addEventListener("error", () => retryEmote(img, item.emote, stack, sourceText))
+            stack.appendChild(img)
         })
 
-        ownNode.add(img)
-        return img
+        ownNode.add(stack)
+        return stack
+    }
+
+    function retryEmote(img, emote, stack, originalText) {
+        if (!img.dataset.eaRetried) {
+            img.dataset.eaRetried = "1"
+            const url = new URL(emote.url, location.href)
+            url.searchParams.set("_ea_retry", String(Date.now()))
+            img.src = url.href
+            return
+        }
+        if (!stack.isConnected) return
+        const fallback = document.createTextNode(originalText)
+        ownNode.add(fallback)
+        stack.replaceWith(fallback)
     }
 
     function restoreRendered() {
+        shared.hideEmoteHover?.()
         for (const root of Array.from(knownRoots)) {
             if (root !== document && !root.isConnected) {
                 knownRoots.delete(root)
                 continue
             }
-            const images = root.querySelectorAll
-                ? root.querySelectorAll("img[data-emoteanywhere-rendered='true']")
+            const stacks = root.querySelectorAll
+                ? root.querySelectorAll("[data-emoteanywhere-rendered='true']")
                 : []
-            for (const img of images) {
-                const text = img.dataset.emoteanywhereText || img.alt || ""
-                img.replaceWith(document.createTextNode(text))
+            for (const stack of stacks) {
+                const text = stack.dataset.emoteanywhereText || stack.alt || ""
+                stack.replaceWith(document.createTextNode(text))
             }
         }
     }

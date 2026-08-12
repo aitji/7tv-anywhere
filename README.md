@@ -36,6 +36,8 @@ Bring the emotes you love to chats, comments, and conversations across the web. 
 * [x] Enable or disable the extension for individual websites
 * [x] Choose a global performance mode or override it per website
 * [x] Adjust emote size and set priority
+* [x] Stack 7TV zero-width emotes over a base emote
+* [x] Customize emote hover cards, native titles, and hover delay
 * [x] Import and export your settings
 * [x] Toggle the extension with a keyboard shortcut
 * [x] See loading, saving, and update activity through the popup and extension badge

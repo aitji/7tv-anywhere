@@ -30,7 +30,8 @@ function makeChannelBrowserCard(channel) {
     for (const emote of channel.emotes.slice(0, 4)) {
         const img = document.createElement("img")
         img.src = emote.url
-        img.alt = ""
+        img.alt = emote.name
+        img.title = `${emote.name} (${emote.channelName || "Global 7TV"})`
         img.loading = "lazy"
         preview.appendChild(img)
     }

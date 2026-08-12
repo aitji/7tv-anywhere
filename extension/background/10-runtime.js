@@ -27,19 +27,27 @@ async function syncBadge() {
         emoteSize,
         caseSensitive,
         matchPriority,
-        renderMode
+        renderMode,
+        zeroWidthEmote,
+        zeroWidthText,
+        emoteHoverStyle,
+        emoteHoverLayout,
+        emoteHoverTemplate,
+        emoteHoverDelay
     } = await ext.storage.local.get([
         "pendingDraft", "initStatus", "emoteLoadStatus",
         "channelOperation", "updateInfo", "customSets", "channelSettings",
-        "excludedEmote", "emoteSize", "caseSensitive", "matchPriority", "renderMode"
+        "excludedEmote", "emoteSize", "caseSensitive", "matchPriority", "renderMode",
+        "zeroWidthEmote", "zeroWidthText", "emoteHoverStyle", "emoteHoverLayout", "emoteHoverTemplate", "emoteHoverDelay"
     ])
     if (rev !== badgeRev) return
 
     const work = [...badgeWork.values()]
     const loading = [initStatus, emoteLoadStatus, channelOperation]
-        .some(status => status && ["resolving", "resolving-default", "loading-emotes", "loading"].includes(status.phase))
+        .some(status => status && !status.acknowledged
+            && ["resolving", "resolving-default", "loading-emotes", "loading"].includes(status.phase))
     const failed = [initStatus, emoteLoadStatus, channelOperation]
-        .some(status => status && status.phase === "error")
+        .some(status => status && status.phase === "error" && !status.acknowledged)
 
     let text = ""
     let color = "#676c7d"
@@ -59,7 +67,8 @@ async function syncBadge() {
         title += " — Something needs attention"
     } else if (hasDraftChanges(pendingDraft, {
         customSets, channelSettings, excludedEmote, emoteSize,
-        caseSensitive, matchPriority, renderMode
+        caseSensitive, matchPriority, renderMode, zeroWidthEmote, zeroWidthText,
+        emoteHoverStyle, emoteHoverLayout, emoteHoverTemplate, emoteHoverDelay
     })) {
         text = "?"
         color = "#f0b429"
@@ -79,9 +88,16 @@ async function syncBadge() {
 
 ext.storage.onChanged.addListener((change, area) => {
     if (area !== "local") return
+    if (change.maintainerGuidance) {
+        cfgCache = null
+        siteruleSource = null
+        siteRule = []
+        siteCache.clear()
+        if (change.maintainerGuidance.newValue === false) setCfgCache(LOCAL_CFG)
+    }
     const key = [
         "pendingDraft", "initStatus", "emoteLoadStatus",
-        "channelOperation", "updateInfo"
+        "channelOperation", "updateInfo", "maintainerGuidance"
     ]
     if (key.some(name => change[name])) syncBadge().catch(() => { })
 })

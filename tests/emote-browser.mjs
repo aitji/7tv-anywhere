@@ -63,6 +63,7 @@ async function createBrowserHarness() {
             makeEmoteGroup,
             syncEmoteGroupState,
             renderLoadedEmotes,
+            browserEmoteSearchScore,
             loadBrowserSetPreview,
             openBrowserSetSelection,
             applyBrowserSetSelection,
@@ -80,6 +81,7 @@ async function createBrowserHarness() {
                 browserSetFilter.value = setId
                 browserBlockedOnlyInput.checked = blockedOnly
             },
+            setSearch(value) { browserSearchInput.value = value },
             getPreview(channelId, setId) {
                 return browserPreviewBySet.get(previewCacheKey(channelId, setId)) || null
             },
@@ -169,6 +171,19 @@ assert.equal(singleCard.tagName, "ARTICLE")
 assert.equal(singleCard.querySelectorAll("img").length, 1)
 assert.equal(singleCard.querySelectorAll(".emote-source-list").length, 0)
 assert.equal(singleCard.querySelector("[data-source-status]").textContent, "Active")
+assert.equal(singleCard.querySelector("img").title, "OnlyVedal (vedal987)")
+
+assert.ok(api.browserEmoteSearchScore({ name: "Alert", channelName: "other" }, "a")
+    < api.browserEmoteSearchScore({ name: "WideAlert", channelName: "other" }, "a"))
+assert.equal(api.browserEmoteSearchScore({ name: ":0", channelName: "vedal987" }, "a"), Infinity)
+api.setFilters("all", "all")
+api.setSearch("a")
+api.renderLoadedEmotes()
+assert.deepEqual(
+    Array.from(harness.virtualCalls.mounts.at(-1).items, ([name]) => name),
+    ["onlyvedal"]
+)
+api.setSearch("")
 
 const duplicateCard = api.makeEmoteGroup(loaded.slice(0, 2))
 assert.equal(duplicateCard.querySelectorAll("img").length, 2)

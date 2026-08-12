@@ -77,7 +77,7 @@ vm.runInContext(
         getDraft, saveDraft, discardDraft, addChannel,
         getEmote, reloadEmote, refreshMain, getSugg, caseFit, resChannel,
         channelRes, activeId, getSet, getUser, getTwitch,
-        cleanExcludedEmote, makeExclusionMatcher, isEmoteExcluded
+        cleanExcludedEmote, makeExclusionMatcher, isEmoteExcluded, isZeroWidthEmote, getCfg
     };`,
     context
 )
@@ -95,6 +95,12 @@ assert.equal(errorText(null), "Something went wrong...")
 assert.equal(context.__siteRuleTest.checkVer("1.0.6-beta.1", "1.0.6"), -1)
 assert.equal(context.__siteRuleTest.checkVer("1.0.6", "1.0.6-beta.1"), 1)
 assert.equal(context.__siteRuleTest.checkVer("v1.0.7", "1.0.6"), 1)
+
+storageData.maintainerGuidance = false
+const localCfg = await context.__siteRuleTest.getCfg(true)
+assert.equal(localCfg.siteRules.length, 0)
+assert.ok(localCfg.commonChannel.vedal987)
+storageData.maintainerGuidance = true
 
 const cleanRules = context.__siteRuleTest.cleanExcludedEmote([
     " This ",
@@ -117,6 +123,9 @@ assert.equal(sourceMatcher({ name: "This", channelId: "vedal" }), false)
 const globalMatcher = context.__siteRuleTest.makeExclusionMatcher(["this"], false)
 assert.equal(globalMatcher({ name: "This", channelId: "camila" }), true)
 assert.equal(globalMatcher({ name: "THIS", channelId: "vedal" }), true)
+assert.equal(context.__siteRuleTest.isZeroWidthEmote({ data: { flags: 256 } }), true)
+assert.equal(context.__siteRuleTest.isZeroWidthEmote({ data: { flags: 0 } }), false)
+assert.equal(context.__siteRuleTest.isZeroWidthEmote({ data: { flags: 257 } }), true)
 
 storageData.pendingDraft = { customSets: [], channelSettings: {} }
 await context.__siteRuleTest.syncBadge()
@@ -139,6 +148,10 @@ storageData.channelOperation = { phase: "error" }
 await context.__siteRuleTest.syncBadge()
 assert.equal(actionState.text, "!")
 assert.match(actionState.title, /needs attention/)
+
+storageData.channelOperation.acknowledged = true
+await context.__siteRuleTest.syncBadge()
+assert.notEqual(actionState.text, "!")
 
 storageData.channelOperation = null
 const finishSave = context.__siteRuleTest.startBadgeWork("save")
@@ -164,7 +177,7 @@ Object.assign(storageData, {
     emoteSetSize: 2,
     emoteSize: 2,
     emoteSetPartial: false,
-    emoteSetKey: JSON.stringify([3, "global"]),
+    emoteSetKey: JSON.stringify([4, "global"]),
     customSets: [],
     excludedEmote: [],
     caseSensitive: false,

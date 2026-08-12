@@ -72,10 +72,7 @@ renderModeSelect.addEventListener("change", () => {
         title: "Use Light mode?",
         body: "Light prioritizes new text and skips current-page and shadow-root scans. It also turns off maintainer compatibility downloads. Emote downloads, overlays, hover details, and update checks do not change.",
         actionLabel: "Use Light mode",
-        onAction: async () => {
-            await setMaintainerGuidance(false)
-            setRenderModeDraft("light")
-        }
+        onAction: async () => setRenderModeDraft("light")
     })
 })
 

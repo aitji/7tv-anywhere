@@ -41,8 +41,7 @@ const SETTINGS_HELP = Object.freeze({
         body: "This downloads the small compatibility-rules file maintained with 7TV Anywhere. Turning it off removes site notes and automatic unsupported-site recommendations",
         example: [
             ["Off", "No compatibility-rules request runs in the background"],
-            ["Still online", "7TV emote downloads and optional extension update checks are separate"],
-            ["Light mode", "Switching the default scanner to Light also turns this guidance off"]
+            ["Online", "7TV emote downloads and optional extension update checks are separate"]
         ]
     }
 })

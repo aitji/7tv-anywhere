@@ -190,7 +190,7 @@ async function doInit() {
     if (state.caseSensitive === undefined) defaults.caseSensitive = false
     if (state.matchPriority === undefined) defaults.matchPriority = DEFAULT_MATCH_PRIORITY
     if (state.renderMode === undefined) defaults.renderMode = DEFAULT_RENDER_MODE
-    for (const [key, value] of Object.entries({ zeroWidthEmote: true, zeroWidthText: false, emoteHoverStyle: "card", emoteHoverLayout: "right", emoteHoverTemplate: DEFAULT_HOVER_TEMPLATE, emoteHoverDelay: 350, maintainerGuidance: cleanRenderMode(state.renderMode) !== "light" }))
+    for (const [key, value] of Object.entries({ zeroWidthEmote: true, zeroWidthText: false, emoteHoverStyle: "card", emoteHoverLayout: "right", emoteHoverTemplate: DEFAULT_HOVER_TEMPLATE, emoteHoverDelay: 350, maintainerGuidance: true }))
         if (state[key] === undefined) defaults[key] = value
 
     const hasConfiguredSets = Array.isArray(state.customSets) && state.customSets.length > 0

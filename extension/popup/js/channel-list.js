@@ -168,6 +168,7 @@ function renderCCard(channel, index, total) {
         strip.className = "preview-strip"
         previewEmote.slice(0, 20).forEach(e => {
             const img = document.createElement("img")
+            img.referrerPolicy = "no-referrer"
             img.src = e.url
             img.alt = e.name
             img.title = e.name
@@ -301,4 +302,3 @@ function dedupePreview(previews) {
     }
     return out
 }
-

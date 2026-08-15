@@ -181,6 +181,51 @@ textarea {
     color: var(--text)
 }
 
+.default-access-mode {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    flex: 0 0 100px;
+    gap: 3px;
+}
+
+.default-access-mode button {
+    min-height: 28px;
+    padding: 5px 6px;
+    color: var(--text-secondary);
+    background: var(--bg-elevated-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font: 700 10px/1 inherit;
+    cursor: pointer;
+    transition: color .12s, background-color .12s, border-color .12s;
+}
+
+.default-access-mode button:hover,
+.default-access-mode button:focus-visible {
+    color: var(--text);
+    border-color: var(--text-tertiary);
+    outline: 2px solid transparent;
+}
+
+.default-access-mode button.is-active {
+    color: var(--text);
+    background: #262a36;
+    border-color: #707586;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, .32);
+}
+
+.default-access-mode button[data-default-access="on"].is-active {
+    color: var(--green);
+    background: rgba(62, 207, 142, .12);
+    border-color: rgba(62, 207, 142, .58);
+}
+
+.default-access-mode button[data-default-access="off"].is-active {
+    color: var(--red);
+    background: rgba(245, 101, 101, .11);
+    border-color: rgba(245, 101, 101, .56);
+}
+
 .field>label,
 .tab-btn {
     font-weight: 600;

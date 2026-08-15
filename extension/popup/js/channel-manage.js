@@ -142,6 +142,7 @@ function renderSetCard(set, pref, index, total) {
         strip.className = "preview-strip"
         set.preview.slice(0, 8).forEach(e => {
             const img = document.createElement("img")
+            img.referrerPolicy = "no-referrer"
             img.src = e.url
             img.alt = e.name
             img.title = e.name
@@ -272,6 +273,7 @@ function applyActiveSetInfo(result) {
             preview: activeSet.preview || [],
             channelId: result.channel.id,
             channelName: result.channel.name,
+            channelAvatarUrl: result.channel.avatarUrl || "",
             enabled: !!pref.alwaysMain
         })
         sets = asChannelSet()

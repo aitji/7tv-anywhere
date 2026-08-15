@@ -46,10 +46,20 @@ async function channelRes(user) {
 
     return {
         type: "channel",
-        channel: { id: user.id, name: user.display_name || user.username || user.id },
+        channel: {
+            id: user.id,
+            name: user.display_name || user.username || user.id,
+            avatarUrl: normalizeAvatarUrl(user.avatar_url || user.avatarUrl)
+        },
         sets: set,
         activeSetId: activeId(user)
     }
+}
+
+function normalizeAvatarUrl(value) {
+    const url = String(value || "").trim()
+    if (url.startsWith("//")) return `https:${url}`
+    return /^https:\/\//i.test(url) ? url : ""
 }
 
 function activeId(user) {
@@ -113,6 +123,7 @@ async function getTwitch(username) {
             id: data.id,
             username: data.username,
             display_name: data.display_name,
+            avatar_url: data.avatar_url,
             emote_sets: data.emote_set ? [data.emote_set] : [],
             active_emote_set_id: mainId
         }

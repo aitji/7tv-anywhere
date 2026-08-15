@@ -73,6 +73,16 @@
         status.classList.remove("error")
         status.textContent = "Importing settings and reloading emotes..."
         try {
+            const requestedOrigins = imported.siteAccessDefault
+                ? ["<all_urls>"]
+                : imported.enabledSites.map(host => `*://${host}/*`)
+            const granted = !requestedOrigins.length || !ext.permissions?.request
+                ? true
+                : await ext.permissions.request({ origins: requestedOrigins })
+            if (!granted) {
+                imported.siteAccessDefault = false
+                imported.enabledSites = []
+            }
             await ext.storage.local.set({
                 ...imported,
                 initStatus: {
@@ -126,6 +136,10 @@
 
         return {
             enabled: settings.enabled !== false,
+            siteAccessDefault: settings.siteAccessDefault === true,
+            enabledSites: Array.isArray(settings.enabledSites)
+                ? settings.enabledSites.filter(v => typeof v === "string" && /^[a-z0-9.-]+$/i.test(v))
+                : [],
             disabledSites: Array.isArray(settings.disabledSites) ? settings.disabledSites.filter(v => typeof v === "string") : [],
             enabledUnsupportedSites: Array.isArray(settings.enabledUnsupportedSites)
                 ? settings.enabledUnsupportedSites.filter(v => typeof v === "string")
@@ -145,6 +159,23 @@
                 : "right",
             emoteHoverTemplate: cleanHoverTemplate(settings.emoteHoverTemplate),
             emoteHoverDelay: settings.emoteHoverDelay === undefined ? 350 : cleanHoverDelay(settings.emoteHoverDelay),
+            pickerEnabled: settings.pickerEnabled !== false,
+            pickerLayout: settings.pickerLayout === "sidebar" ? "sidebar" : "tabs",
+            pickerFavorites: Array.isArray(settings.pickerFavorites)
+                ? settings.pickerFavorites.filter(value => typeof value === "string").slice(0, 500)
+                : [],
+            pickerUsage: settings.pickerUsage && typeof settings.pickerUsage === "object"
+                && !Array.isArray(settings.pickerUsage) ? clone(settings.pickerUsage) : {},
+            pickerTriggerPositions: Object.fromEntries(Object.entries(
+                settings.pickerTriggerPositions && typeof settings.pickerTriggerPositions === "object"
+                    ? settings.pickerTriggerPositions
+                    : {}
+            ).filter(([host, offset]) => /^[a-z0-9.-]+$/i.test(host)
+                && offset && Number.isFinite(offset.x) && Number.isFinite(offset.y))
+                .map(([host, offset]) => [host, {
+                    x: Math.max(-2000, Math.min(2000, Math.round(offset.x))),
+                    y: Math.max(-2000, Math.min(2000, Math.round(offset.y)))
+                }])),
             siteRenderModes: Object.fromEntries(Object.entries(
                 settings.siteRenderModes && typeof settings.siteRenderModes === "object"
                     ? settings.siteRenderModes

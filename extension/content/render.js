@@ -2,6 +2,8 @@
     /** @type {typeof chrome} */
     const ext = typeof browser === "undefined" ? chrome : browser
     const shared = globalThis.__7tvAnywhereShared ||= {}
+    if (shared.renderLoaded) return
+    shared.renderLoaded = true
     shared.getSiteVerdict ||= url => {
         if (shared.siteVerdictUrl !== url || !shared.siteVerdictPromise) {
             shared.siteVerdictUrl = url
@@ -100,7 +102,8 @@
             shared.siteVerdictUrl = null
             shared.siteVerdictPromise = null
         }
-        if ("enabled" in changes || "disabledSites" in changes || "enabledUnsupportedSites" in changes || "siteCfg" in changes) await evlActive()
+        if ("enabled" in changes || "siteAccessDefault" in changes || "enabledSites" in changes
+            || "disabledSites" in changes || "enabledUnsupportedSites" in changes || "siteCfg" in changes) await evlActive()
         if (isActive && ("excludedEmote" in changes || "emoteSet" in changes
             || "emoteSize" in changes || "caseSensitive" in changes || "matchPriority" in changes
             || "renderMode" in changes || "siteRenderModes" in changes || "zeroWidthEmote" in changes
@@ -161,14 +164,15 @@
 
     async function evlActive() {
         const [state, site] = await Promise.all([
-            ext.storage.local.get(["enabled", "disabledSites", "enabledUnsupportedSites"]),
+            ext.storage.local.get(["enabled", "siteAccessDefault", "enabledSites", "disabledSites", "enabledUnsupportedSites"]),
             shared.getTopSite()
         ])
-        const { enabled = true, disabledSites = [], enabledUnsupportedSites = [] } = state
+        const { enabled = true, siteAccessDefault = false, enabledSites = [], disabledSites = [], enabledUnsupportedSites = [] } = state
         const isUnsupported = await checkUnsupported(site)
-        const siteOk = isUnsupported
-            ? enabledUnsupportedSites.includes(site.hostname)
-            : !disabledSites.includes(site.hostname)
+        const permitted = siteAccessDefault
+            ? !disabledSites.includes(site.hostname)
+            : enabledSites.includes(site.hostname)
+        const siteOk = permitted && (!isUnsupported || enabledUnsupportedSites.includes(site.hostname))
         const shouldBeActive = enabled && siteOk
 
         if (shouldBeActive && !isActive) {
@@ -646,6 +650,7 @@
 
         items.forEach((item, index) => {
             const img = document.createElement("img")
+            img.referrerPolicy = "no-referrer"
             img.src = item.emote.url
             img.alt = sourceText
             img.draggable = false

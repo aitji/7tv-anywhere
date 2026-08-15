@@ -41,6 +41,15 @@ for (const file of jsFile) {
         console.error(`unsafe HTML DOM assignment found in ${path.relative(root, file)}`)
         process.exitCode = 1
     }
+    if (file.startsWith(extDir)) {
+        for (const match of source.matchAll(/const\s+(\w+)\s*=\s*document\.createElement\(["']img["']\)/g)) {
+            const tail = source.slice(match.index, match.index + 240)
+            if (!tail.includes(`${match[1]}.referrerPolicy = "no-referrer"`)) {
+                console.error(`remote image without no-referrer policy in ${path.relative(root, file)}`)
+                process.exitCode = 1
+            }
+        }
+    }
 }
 
 for (const file of [

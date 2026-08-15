@@ -2,6 +2,8 @@
     /** @type {typeof chrome} */
     const ext = typeof browser === "undefined" ? chrome : browser
     const shared = globalThis.__7tvAnywhereShared ||= {}
+    if (shared.autocompleteLoaded) return
+    shared.autocompleteLoaded = true
     shared.getSiteVerdict ||= url => {
         if (shared.siteVerdictUrl !== url || !shared.siteVerdictPromise) {
             shared.siteVerdictUrl = url
@@ -50,7 +52,8 @@
                 shared.siteVerdictUrl = null
                 shared.siteVerdictPromise = null
             }
-            if ("enabled" in changes || "disabledSites" in changes || "enabledUnsupportedSites" in changes || "siteCfg" in changes)
+            if ("enabled" in changes || "siteAccessDefault" in changes || "enabledSites" in changes
+                || "disabledSites" in changes || "enabledUnsupportedSites" in changes || "siteCfg" in changes)
                 await elvActive()
         })
     }
@@ -62,14 +65,15 @@
 
     async function elvActive() {
         const [state, site] = await Promise.all([
-            ext.storage.local.get(["enabled", "disabledSites", "enabledUnsupportedSites"]),
+            ext.storage.local.get(["enabled", "siteAccessDefault", "enabledSites", "disabledSites", "enabledUnsupportedSites"]),
             shared.getTopSite()
         ])
-        const { enabled = true, disabledSites = [], enabledUnsupportedSites = [] } = state
+        const { enabled = true, siteAccessDefault = false, enabledSites = [], disabledSites = [], enabledUnsupportedSites = [] } = state
         const isUnsupported = await checkUnsupported(site)
-        const siteOk = isUnsupported
-            ? enabledUnsupportedSites.includes(site.hostname)
-            : !disabledSites.includes(site.hostname)
+        const permitted = siteAccessDefault
+            ? !disabledSites.includes(site.hostname)
+            : enabledSites.includes(site.hostname)
+        const siteOk = permitted && (!isUnsupported || enabledUnsupportedSites.includes(site.hostname))
         siteEnabled = enabled && siteOk
         setActive(siteEnabled && !document.hidden)
     }
@@ -333,6 +337,7 @@
             item.setAttribute("aria-selected", index === activeIndex ? "true" : "false")
 
             const img = document.createElement("img")
+            img.referrerPolicy = "no-referrer"
             img.src = emote.url
             img.alt = emote.name ?? '?'
             item.appendChild(img)
@@ -395,6 +400,7 @@
         reqToken++
         if (listEl) listEl.style.display = "none"
     }
+    shared.closeAutocomplete = closeDropdown
 
     const posDropdown = (el, ctx) => {
         ensureHost()

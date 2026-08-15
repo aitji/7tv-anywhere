@@ -23,14 +23,18 @@
 
         <section aria-label="Autocomplete">
             <div id="plain-editor" role="textbox" aria-label="Test chat input" contenteditable="true"></div>
+            <textarea id="picker-textarea" aria-label="Picker textarea"></textarea>
         </section>
 
         <div id="shadow-host"></div>
+        <div aria-hidden="true" style="height:1200px"></div>
     </main>
 
     <script>
         const storageData = {
             enabled: true,
+            siteAccessDefault: true,
+            enabledSites: [],
             disabledSites: [],
             enabledUnsupportedSites: [],
             excludedEmote: [],
@@ -40,14 +44,28 @@
             emoteHoverStyle: "card",
             emoteHoverLayout: "right",
             emoteHoverTemplate: "{original} ({emote}@{channel})",
-            emoteHoverDelay: 100
+            emoteHoverDelay: 100,
+            pickerEnabled: true,
+            pickerLayout: new URL(location.href).searchParams.has("sidebar") ? "sidebar" : "tabs",
+            pickerFavorites: [],
+            pickerUsage: {}
         }
         const storageListeners = []
-        const emotes = [
-            { name: "PauseSama", id: "pause", url: "/extension/icons/icon-16.png", channelName: "test" },
-            { name: "LETSGO", id: "go", url: "/extension/icons/icon-16.png", channelName: "test" },
-            { name: "RainTime", id: "rain", url: "/extension/icons/icon-16.png", channelName: "Global 7TV", zeroWidth: true }
+        const baseEmotes = [
+            { name: "PauseSama", id: "pause", url: "/extension/icons/icon-16.png", channelId: "test", channelName: "Test channel" },
+            { name: "LETSGO", id: "go", url: "/extension/icons/icon-16.png", channelId: "test", channelName: "Test channel" },
+            { name: "GlobalNormal", id: "global-normal", url: "/extension/icons/icon-16.png", channelId: "global", channelName: "Global 7TV" },
+            { name: "RainTime", id: "rain", url: "/extension/icons/icon-16.png", channelId: "global", channelName: "Global 7TV", zeroWidth: true }
         ]
+        const emotes = new URL(location.href).searchParams.has("large")
+            ? baseEmotes.concat(Array.from({ length: 1200 }, (_, index) => ({
+                name: `VirtualEmote${String(index + 1).padStart(4, "0")}`,
+                id: `virtual-${index + 1}`,
+                url: `/extension/icons/icon-16.png?virtual=${index + 1}`,
+                channelId: "test",
+                channelName: "Test channel"
+            })))
+            : baseEmotes
 
         globalThis.chrome = {
             runtime: {
@@ -57,6 +75,13 @@
                     if (message.type === "GET_SUGGESTIONS") {
                         const query = String(message.query || "").toLowerCase()
                         return { suggestions: emotes.filter(emote => emote.name.toLowerCase().includes(query)) }
+                    }
+                    if (message.type === "GET_PICKER_DATA") return {
+                        emotes,
+                        channels: [
+                            { id: "global", name: "Global 7TV", count: emotes.filter(emote => emote.channelId === "global").length },
+                            { id: "test", name: "Test channel", avatarUrl: "/extension/icons/icon-48.png", count: emotes.filter(emote => emote.channelId === "test").length }
+                        ]
                     }
                     return {}
                 },
@@ -68,6 +93,14 @@
                         if (typeof keys === "string") return { [keys]: storageData[keys] }
                         const list = Array.isArray(keys) ? keys : Object.keys(keys || {})
                         return Object.fromEntries(list.map(key => [key, storageData[key]]))
+                    },
+                    async set(values) {
+                        const changes = {}
+                        for (const [key, value] of Object.entries(values)) {
+                            changes[key] = { oldValue: storageData[key], newValue: value }
+                            storageData[key] = value
+                        }
+                        storageListeners.forEach(listener => listener(changes, "local"))
                     }
                 },
                 onChanged: { addListener(listener) { storageListeners.push(listener) } }
@@ -98,5 +131,6 @@
     <script src="/extension/content/render.js"></script>
     <script src="/extension/content/hover.js"></script>
     <script src="/extension/content/autocomplete.js"></script>
+    <script src="/extension/content/picker.js"></script>
 </body>
 </html>

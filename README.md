@@ -9,7 +9,7 @@
 
 **Take your favorite [7TV](https://7tv.app) emotes beyond Twitch!**
 
-Bring the emotes you love to chats, comments, and conversations across the web. 7TV Anywhere recognizes emote names in supported webpages, displays their familiar images alongside the text, and helps you find emotes while typing with quick autocomplete.
+Bring the emotes you love to chats, comments, and conversations across the web. 7TV Anywhere recognizes emote names in supported webpages, displays their familiar images alongside the text, and helps you find emotes with quick autocomplete and an in-page picker.
 
 > 7TV Anywhere is an independent, unofficial extension and **is not** affiliated with or endorsed by 7TV.
 
@@ -27,13 +27,16 @@ Bring the emotes you love to chats, comments, and conversations across the web. 
 
 * [x] Render 7TV emotes in supported webpage text
 * [x] Type `:emote` to search in compatible chats, comments, and text fields
+* [x] Open a searchable in-page picker with favorites, frequently used emotes, and channel categories
+* [x] Choose a compact sidebar or horizontal-tab picker layout
 * [x] Add emotes from Twitch channels or individual 7TV emote sets
 * [x] Follow a channel's current main emote set automatically
 * [x] Browse configured channels, sets, and loaded emotes
 * [x] Preview disabled emote sets before enabling them
 * [x] Disable an emote globally or only for a specific channel
 * [x] Match emote names with or without case sensitivity
-* [x] Enable or disable the extension for individual websites
+* [x] Enable or disable individual websites without recording sites you merely visit
+* [x] Keep access off by default, grant individual websites, or optionally enable all websites
 * [x] Choose a global performance mode or override it per website
 * [x] Adjust emote size and set priority
 * [x] Stack 7TV zero-width emotes over a base emote
@@ -42,7 +45,7 @@ Bring the emotes you love to chats, comments, and conversations across the web. 
 * [x] Toggle the extension with a keyboard shortcut
 * [x] See loading, saving, and update activity through the popup and extension badge
 
-The popup is designed for both desktop browsers and Firefox for Android. Hidden tabs pause emote processing and release their lookup data until they become visible again, reducing background resource use.
+First-run onboarding demonstrates the difference website access makes, then asks for an explicit all-websites or per-site choice. Progress resumes after the popup closes, and permission requests can move to a normal browser tab so the browser prompt stays visible. Onboarding can be run again from Settings. The in-page picker button can be dragged, remembers only positions the user explicitly sets for each website, and virtualizes large emote grids. The popup is designed for both desktop browsers and Firefox for Android. Hidden tabs pause emote processing and release their lookup data until they become visible again, reducing background resource use.
 
 <img src=".github/img/screenshots.png" alt="7tv-anywhere's extension showcase on youtube live chat">
 
@@ -51,6 +54,8 @@ The popup is designed for both desktop browsers and Firefox for Android. Hidden 
 ## Website compatibility
 
 Websites build their text and editors in many different ways. Most ordinary webpage text works naturally, while some *rich-text editors* and *highly interactive pages* need special handling.
+
+Access to all websites is optional. You can grant it during onboarding or later in Settings; otherwise, 7TV Anywhere stays off by default and asks only for the individual website you enable.
 
 **7**TV Anywhere uses the maintainer-authored [`sites.jsonc`](./sites.jsonc) rules to avoid known conflicts and provide site-specific notes. Unsupported websites can still be enabled manually when you want to try them.
 

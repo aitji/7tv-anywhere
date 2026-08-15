@@ -159,6 +159,7 @@ function appendNoticeText(container, text) {
             container.appendChild(document.createTextNode(text.slice(lastIndex, match.index)))
         const img = document.createElement("img")
         img.className = "notice-emote"
+        img.referrerPolicy = "no-referrer"
         img.src = emote.url
         img.alt = emote.name
         img.title = emote.channelName ? `${emote.name} (${emote.channelName})` : emote.name

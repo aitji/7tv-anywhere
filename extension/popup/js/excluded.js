@@ -29,6 +29,7 @@ function renderExcluded() {
         if (emote) {
             const img = document.createElement("img")
             img.className = "excluded-thumb"
+            img.referrerPolicy = "no-referrer"
             img.src = emote.url
             img.alt = name
             row.appendChild(img)
@@ -138,6 +139,7 @@ async function runExSearch(query) {
         row.className = "search-result"
 
         const img = document.createElement("img")
+        img.referrerPolicy = "no-referrer"
         img.src = emote.url
         img.alt = emote.name
         row.appendChild(img)

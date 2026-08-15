@@ -1,7 +1,7 @@
 # Privacy Policy for 7TV Anywhere
 
 **Effective date:** July 24, 2026  
-**Last updated:** July 24, 2026
+**Last updated:** August 15, 2026
 
 7TV Anywhere is developed and maintained by aitji ("7TV Anywhere," "we," "us," or "our"). This Privacy Policy explains how the 7TV Anywhere browser extension (the "Extension") handles information.
 
@@ -16,7 +16,7 @@
 - does not record your browsing history or keystrokes; and
 - does not operate a developer-controlled server that receives Extension user data.
 
-The Extension processes webpage content locally to display 7TV emotes and provide emote autocomplete. It makes limited network requests to third-party services when necessary to retrieve emote data, resolve channel identifiers, download compatibility rules, and check for Extension updates.
+The Extension processes webpage content locally to display 7TV emotes and provide emote autocomplete and an emote picker. It makes limited network requests to third-party services when necessary to retrieve emote data, resolve channel identifiers, download compatibility rules, and check for Extension updates.
 
 ## 2. Information Handled by the Extension
 
@@ -28,7 +28,7 @@ This processing occurs locally in your browser. Raw website text, personal commu
 
 ### 2.2 Current website
 
-When you open the Extension popup, the Extension reads the active tab's URL or hostname to determine whether 7TV Anywhere is supported or enabled on that website. The Extension may store hostnames that you explicitly enable or disable in its local settings. It does not create or retain a general history of websites you visit.
+When you open the Extension popup, the Extension reads the active tab's URL or hostname to determine whether 7TV Anywhere is supported or enabled on that website. Merely opening a website or the popup does not add that hostname to a list. The Extension stores a hostname only when you explicitly enable or disable that website, or when you drag the picker button and save a position for that website. You can remove a website choice to return it to the all-website default. The Extension does not monitor tabs in the background to create a history of websites you visit.
 
 ### 2.3 Settings and cached data
 
@@ -36,13 +36,17 @@ The Extension stores information locally using the browser's extension storage, 
 
 - enabled channels and 7TV emote sets;
 - channel and emote preferences;
+- picker favorites and local emote-use counts;
 - excluded emotes and websites;
+- website-access choices and picker positions that you explicitly set for a website;
 - display, matching, and update-check preferences;
 - cached emote data and compatibility rules;
 - update and loading status; and
 - unfinished configuration changes.
 
 This information remains in your browser and is used only to provide the Extension's features. If you use the export feature, the selected settings are written to a file on your device at your direction. Imported settings files are read and processed locally.
+
+Remote emote and channel images are loaded with a `no-referrer` policy, which prevents the referring webpage URL from being included in those image requests.
 
 ### 2.4 Channel and emote-set identifiers
 
@@ -68,6 +72,7 @@ Information handled by the Extension is used solely to:
 
 - identify and display 7TV emotes;
 - provide emote autocomplete;
+- provide the emote picker, favorites, and frequently used ordering;
 - retrieve and maintain user-selected emote sets;
 - apply website compatibility and enablement choices;
 - save and restore Extension preferences;

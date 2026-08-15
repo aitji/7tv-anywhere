@@ -36,6 +36,25 @@ const SETTINGS_HELP = Object.freeze({
             ["Delay", "0 ms is immediate. A longer delay avoids accidental popups"]
         ]
     },
+    picker: {
+        title: "In-page emote picker",
+        body: "Focus an editable field and use the magnifying-glass button to browse only enabled, non-blocked emotes",
+        example: [
+            ["Horizontal tabs", "Favorites and channels run across the top"],
+            ["Vertical sidebar", "Compact category shortcuts run down the left"],
+            ["Local history", "Favorites and frequently used emotes stay on this device"]
+        ]
+    },
+    "site-access": {
+        title: "Optional website access",
+        body: "All-website access is recommended but optional. If it is off, enable and approve access manually for every website you trust. Websites without an explicit choice use the all-website default",
+        example: [
+            ["Default on", "The browser asks once for access to all websites"],
+            ["Default off", "Turn on each website's switch and approve its permission"],
+            ["Website list", "Only explicit enabled or disabled choices appear; remove one with × to use the default"],
+            ["Protected pages", "Browser settings and other protected pages cannot run extensions"]
+        ]
+    },
     guidance: {
         title: "Maintainer guidance",
         body: "This downloads the small compatibility-rules file maintained with 7TV Anywhere. Turning it off removes site notes and automatic unsupported-site recommendations",

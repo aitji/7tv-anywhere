@@ -206,6 +206,7 @@ function makeEmoteSourceRow(emote, groupVariants, showName, tagName = "div") {
 
     const img = document.createElement("img")
     img.className = "emote-source-thumb"
+    img.referrerPolicy = "no-referrer"
     img.src = emote.url
     img.alt = showName ? emote.name : ""
     img.title = `${emote.name} (${emote.channelName || "Global 7TV"})`

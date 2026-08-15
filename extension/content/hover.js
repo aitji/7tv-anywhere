@@ -1,5 +1,7 @@
 (() => {
     const shared = globalThis.__7tvAnywhereShared ||= {}
+    if (shared.hoverLoaded) return
+    shared.hoverLoaded = true
     const infoByEmote = shared.emoteInfo ||= new WeakMap()
     let host = null
     let root = null
@@ -41,6 +43,7 @@
         const preview = add(card, "div", "preview")
         info.emotes.forEach(item => {
             const img = document.createElement("img")
+            img.referrerPolicy = "no-referrer"
             img.src = item.url
             img.alt = item.name ?? '?'
             img.title = `${item.name} (${item.channelName || "Global 7TV"})`

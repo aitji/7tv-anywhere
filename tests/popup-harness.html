@@ -10,6 +10,8 @@
         const storageListeners = []
         const storageData = {
             enabled: true,
+            siteAccessDefault: true,
+            enabledSites: [],
             disabledSites: [],
             enabledUnsupportedSites: [],
             customSets: [{
@@ -42,7 +44,19 @@
             initStatus: { phase: "ready", message: "Ready.", updatedAt: Date.now() },
             autoCheckUpdates: true,
             maintainerGuidance: true,
-            updateCheckIntervalHours: 168
+            updateCheckIntervalHours: 168,
+            pickerEnabled: true,
+            pickerLayout: "tabs",
+            onboardingComplete: !new URL(location.href).searchParams.has("onboarding")
+        }
+        if (new URL(location.href).searchParams.has("resume")) {
+            storageData.onboardingComplete = false
+            storageData.onboardingSession = {
+                active: true,
+                index: 2,
+                prefs: { pickerLayout: "sidebar", pickerEnabled: true, emoteSize: 3 },
+                updatedAt: Date.now()
+            }
         }
         if (new URL(location.href).searchParams.has("draft")) {
             storageData.pendingDraft = {
@@ -99,10 +113,36 @@
             }
             emit(changes)
         }
+        const clearStorage = async () => {
+            const changes = {}
+            for (const [name, value] of Object.entries(storageData)) {
+                changes[name] = { oldValue: value, newValue: undefined }
+                delete storageData[name]
+            }
+            emit(changes)
+        }
+        let allSitesGranted = !new URL(location.href).searchParams.has("denied")
+        const grantedSiteOrigins = new Set()
+        const permissionResult = new URL(location.href).searchParams.get("permissionResult")
+        if (permissionResult === "granted" || permissionResult === "denied") {
+            storageData.siteAccessPermissionResult = {
+                granted: permissionResult === "granted",
+                source: "default-access",
+                updatedAt: Date.now()
+            }
+            allSitesGranted = permissionResult === "granted"
+        }
+
+        globalThis.__popupHarness = {
+            getStorage: () => structuredClone(storageData),
+            getAllSitesGranted: () => allSitesGranted,
+            getGrantedSiteOrigins: () => [...grantedSiteOrigins]
+        }
 
         globalThis.chrome = {
             runtime: {
-                getManifest: () => ({ version: "1.0.8" }),
+                getManifest: () => ({ version: "1.0.9" }),
+                getURL: path => new URL(`/extension/${path}`, location.href).href,
                 sendMessage: async message => {
                     if (message.type === "GET_APP_STATE") return pick([
                         "initStatus", "emoteLoadStatus", "channelOperation", "pendingDraft",
@@ -111,9 +151,20 @@
                     if (message.type === "IS_SITE_UNSUPPORTED") return { unsupported: false, note: null }
                     if (message.type === "GET_EMOTES") return { emotes: storageData.emoteSet }
                     if (message.type === "GET_SUGGESTIONS") return { suggestions: storageData.emoteSet }
+                    if (message.type === "GET_PICKER_DATA") return {
+                        emotes: storageData.emoteSet,
+                        channels: [{ id: "global", name: "Global 7TV" }]
+                    }
+                    if (message.type === "INJECT_SITE_RUNTIME") return { success: true }
+                    if (message.type === "RESET_ALL_DATA") {
+                        allSitesGranted = false
+                        grantedSiteOrigins.clear()
+                        await clearStorage()
+                        return { success: true }
+                    }
                     if (message.type === "CHECK_FOR_UPDATE") return {
                         checked: true,
-                        updateInfo: { currentVersion: "1.0.8", latestVersion: "1.0.8", updateAvailable: false }
+                        updateInfo: { currentVersion: "1.0.9", latestVersion: "1.0.9", updateAvailable: false }
                     }
                     if (message.type === "RELOAD_EMOTES") return { success: true, emotes: storageData.emoteSet }
                     if (message.type === "SAVE_DRAFT") {
@@ -185,12 +236,32 @@
                     return {}
                 }
             },
-            tabs: { query: async () => [{ url: "https://www.youtube.com/live_chat" }] },
+            tabs: {
+                query: async () => [{ id: 1, windowId: 37, url: "https://www.youtube.com/live_chat" }],
+                create: async details => ({ id: 2, ...details })
+            },
+            permissions: {
+                contains: async request => request.origins.includes("<all_urls>")
+                    ? allSitesGranted
+                    : allSitesGranted || request.origins.every(origin => grantedSiteOrigins.has(origin)),
+                request: async request => {
+                    if (new URL(location.href).searchParams.has("rejectPermission")) return false
+                    if (request.origins.includes("<all_urls>")) allSitesGranted = true
+                    else request.origins.forEach(origin => grantedSiteOrigins.add(origin))
+                    return true
+                },
+                remove: async request => {
+                    if (request.origins.includes("<all_urls>")) allSitesGranted = false
+                    else request.origins.forEach(origin => grantedSiteOrigins.delete(origin))
+                    return true
+                }
+            },
             storage: {
                 local: {
                     get: async keys => pick(keys),
                     set: setStorage,
-                    remove: removeStorage
+                    remove: removeStorage,
+                    clear: clearStorage
                 },
                 onChanged: { addListener(listener) { storageListeners.push(listener) } }
             }
@@ -209,13 +280,13 @@
                 for (const href of styles) {
                     const stylesheet = document.createElement("link")
                     stylesheet.rel = "stylesheet"
-                    stylesheet.href = href
+                    stylesheet.href = `${href}?harness=${Date.now()}`
                     document.head.appendChild(stylesheet)
                 }
                 document.body.replaceChildren(...parsed.body.childNodes)
                 for (const src of scripts) await new Promise((resolve, reject) => {
                     const script = document.createElement("script")
-                    script.src = src
+                    script.src = `${src}?harness=${Date.now()}`
                     script.onload = resolve
                     script.onerror = reject
                     document.body.appendChild(script)

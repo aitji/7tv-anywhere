@@ -77,6 +77,31 @@ async function getSugg(query) {
     return match.slice(0, MAX_SUGGESTIONS).map(entry => entry.item)
 }
 
+async function getPickerData() {
+    const [emote, prefs] = await Promise.all([getEmote(), getSuggestionPrefs()])
+    const isExcluded = makeExclusionMatcher(prefs.excludedEmote || [], prefs.caseSensitive === true)
+    const emotes = emote.filter(item => !isExcluded(item))
+    const channels = []
+    const byChannel = new Map()
+    for (const item of emotes) {
+        const id = emoteSourceId(item)
+        const channel = byChannel.get(id)
+        if (channel) {
+            channel.count++
+            if (!channel.avatarUrl && item.channelAvatarUrl) channel.avatarUrl = item.channelAvatarUrl
+            continue
+        }
+        byChannel.set(id, {
+            id,
+            name: item.channelName || (id === "global" ? "Global 7TV" : id),
+            avatarUrl: item.channelAvatarUrl || "",
+            count: 1
+        })
+    }
+    channels.push(...byChannel.values())
+    return { emotes, channels }
+}
+
 function compareSuggestion(a, b, priorityMode) {
     const score = b.score - a.score
     if (score) return score

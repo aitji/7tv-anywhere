@@ -117,11 +117,39 @@ emoteHoverDelayInput.addEventListener("change", () => {
     updateSaveBar()
 })
 
+pickerEnabledInput.addEventListener("change", async () => {
+    pickerEnabled = pickerEnabledInput.checked
+    await ext.storage.local.set({ pickerEnabled })
+    pickerStatusEl.textContent = pickerEnabled
+        ? "The magnifying-glass picker appears beside focused text fields"
+        : "The in-page picker is hidden; colon autocomplete still works"
+})
+
+pickerLayoutSelect.addEventListener("change", async () => {
+    pickerLayout = pickerLayoutSelect.value === "sidebar" ? "sidebar" : "tabs"
+    pickerLayoutSelect.value = pickerLayout
+    await ext.storage.local.set({ pickerLayout })
+    pickerStatusEl.textContent = pickerLayout === "sidebar"
+        ? "Vertical category sidebar enabled"
+        : "Horizontal category tabs enabled"
+})
+
+resetPickerPositionBtn.addEventListener("click", async () => {
+    if (!hostname) return
+    const state = await ext.storage.local.get("pickerTriggerPositions")
+    const positions = state.pickerTriggerPositions && typeof state.pickerTriggerPositions === "object"
+        ? { ...state.pickerTriggerPositions }
+        : {}
+    delete positions[hostname.toLowerCase()]
+    await ext.storage.local.set({ pickerTriggerPositions: positions })
+    pickerStatusEl.textContent = `Picker button position reset on ${hostname}`
+})
+
 autoCheckUpdatesInput.addEventListener("change", async () => {
     await ext.storage.local.set({ autoCheckUpdates: autoCheckUpdatesInput.checked })
     updateCheckStatusEl.textContent = autoCheckUpdatesInput.checked
-        ? "Automatic update checks enabled!"
-        : "Automatic checks disabled, manual checks still work"
+        ? "Release availability notices enabled"
+        : "Release notices disabled; browser store updates still work"
 })
 
 async function setMaintainerGuidance(enabled) {
@@ -169,7 +197,7 @@ updateCheckIntervalSelect.addEventListener("change", async () => {
     const hours = Number(updateCheckIntervalSelect.value)
     if (![24, 168, 720].includes(hours)) return
     await ext.storage.local.set({ updateCheckIntervalHours: hours })
-    updateCheckStatusEl.textContent = "Update interval saved!"
+    updateCheckStatusEl.textContent = "Release-check interval saved"
 })
 
 checkUpdateNowBtn.addEventListener("click", async () => {
@@ -197,11 +225,12 @@ checkUpdateNowBtn.addEventListener("click", async () => {
 })
 
 const backupKeys = [
-    "enabled", "disabledSites", "enabledUnsupportedSites",
+    "enabled", "siteAccessDefault", "enabledSites", "disabledSites", "enabledUnsupportedSites",
     "customSets", "channelSettings", "emoteSize",
     "excludedEmote", "caseSensitive", "matchPriority",
     "renderMode", "siteRenderModes", "zeroWidthEmote", "zeroWidthText",
     "emoteHoverStyle", "emoteHoverLayout", "emoteHoverTemplate", "emoteHoverDelay",
+    "pickerEnabled", "pickerLayout", "pickerFavorites", "pickerUsage", "pickerTriggerPositions",
     "autoCheckUpdates", "updateCheckIntervalHours", "maintainerGuidance"
 ]
 
@@ -210,7 +239,7 @@ exportSettingsBtn.addEventListener("click", async () => {
     const settings = await ext.storage.local.get(backupKeys)
     const payload = {
         format: "7tv-anywhere-settings",
-        schemaVersion: 5,
+        schemaVersion: 6,
         extensionVersion: ext.runtime.getManifest().version,
         exportedAt: new Date().toISOString(),
         settings

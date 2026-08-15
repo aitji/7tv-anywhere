@@ -25,10 +25,14 @@ if (fox.browser_specific_settings?.gecko?.data_collection_permissions?.required?
     throw new Error("[Fox] data collection declaration is missing")
 if (chrome.version !== fox.version)
     throw new Error("[Error] Chrome and Fox build versions do not match")
-if (!chrome.content_scripts?.every(script => script.all_frames === true))
-    throw new Error("[Chrome] content scripts must run in live-chat frames")
-if (!fox.content_scripts?.every(script => script.all_frames === true))
-    throw new Error("[Fox] content scripts must run in live-chat frames")
+for (const [name, manifest] of [["Chrome", chrome], ["Fox", fox]]) {
+    if (manifest.content_scripts?.length)
+        throw new Error(`[${name}] all-site content scripts must be dynamically registered`)
+    if (!manifest.permissions?.includes("scripting"))
+        throw new Error(`[${name}] scripting permission is required for optional site injection`)
+    if (!manifest.optional_host_permissions?.includes("<all_urls>"))
+        throw new Error(`[${name}] optional all-site permission is missing`)
+}
 
 for (const browser of ["chrome", "firefox"]) {
     for (const relative of [

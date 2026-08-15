@@ -3,7 +3,8 @@ const ext = typeof browser === "undefined" ? chrome : browser
 
 // element
 const $ = (id) => document.getElementById(id)
-const toggleEnabledBtn = $("toggle-enabled")
+const defaultAccessModeEl = $("default-access-mode")
+const defaultAccessModeBtns = defaultAccessModeEl.querySelectorAll("[data-default-access]")
 const toggleSiteBtn = $("toggle-site")
 const siteLabel = $("site-label")
 
@@ -96,6 +97,10 @@ const emoteHoverTemplateInput = $("emote-hover-template")
 const emoteHoverDelayInput = $("emote-hover-delay")
 const emoteHoverDelayValue = $("emote-hover-delay-value")
 const emoteHoverStatusEl = $("emote-hover-status")
+const pickerEnabledInput = $("picker-enabled")
+const pickerLayoutSelect = $("picker-layout")
+const resetPickerPositionBtn = $("reset-picker-position")
+const pickerStatusEl = $("picker-status")
 const siteRenderModeSelect = $("site-render-mode")
 const siteRenderModeStatusEl = $("site-render-mode-status")
 const updateCheckIntervalSelect = $("update-check-interval")
@@ -108,6 +113,11 @@ const settingsStatusEl = $("settings-status")
 const refreshSiteRulesBtn = $("refresh-site-rules")
 const maintainerGuidanceInput = $("maintainer-guidance")
 const forceReinitializeBtn = $("force-reinitialize")
+const runOnboardingBtn = $("run-onboarding")
+const defaultSiteAccessBtn = $("default-site-access")
+const siteAccessStatusEl = $("site-access-status")
+const siteAccessSummaryEl = $("site-access-summary")
+const siteAccessListEl = $("site-access-list")
 const siteRulesSummaryEl = $("site-rules-summary")
 const siteRulesStatusEl = $("site-rules-status")
 const dataVersionEl = $("data-version")
@@ -131,6 +141,23 @@ const settingsHelpBodyEl = $("settings-help-body")
 const settingsHelpExamplesEl = $("settings-help-examples")
 const settingsHelpCloseBtn = $("settings-help-close")
 const settingsHelpXBtn = $("settings-help-x")
+const onboardingOverlay = $("onboarding-overlay")
+const onboardingTitleEl = $("onboarding-title")
+const onboardingStepEl = $("onboarding-step")
+const onboardingProgressEl = $("onboarding-progress")
+const onboardingContentEl = $("onboarding-content")
+const onboardingBackBtn = $("onboarding-back")
+const onboardingNextBtn = $("onboarding-next")
+const onboardingCloseBtn = $("onboarding-close")
+const onboardingWarningOverlay = $("onboarding-warning-overlay")
+const onboardingResetBtn = $("onboarding-reset")
+const onboardingKeepBtn = $("onboarding-keep")
+const onboardingWarningCancelBtn = $("onboarding-warning-cancel")
+const onboardingPermissionOverlay = $("onboarding-permission-overlay")
+const onboardingPermissionTitleEl = $("onboarding-permission-title")
+const onboardingPermissionBody = $("onboarding-permission-body")
+const onboardingPermissionContinueBtn = $("onboarding-permission-continue")
+const onboardingPermissionCancelBtn = $("onboarding-permission-cancel")
 
 let hostname = null
 let currentTabUrl = null
@@ -138,6 +165,9 @@ let isUnsupportedSite = false
 let siteNote = null
 let siteRuleFlag = null
 let siteRuleCount = 0
+let currentTabId = null
+let siteAccessDefault = false
+let enabledSites = []
 let siteRulesCachedAt = null
 let draft = { customSets: [], channelSettings: {} }
 let saved = { customSets: [], channelSettings: {} }
@@ -185,6 +215,8 @@ let browserPreviewError = new Map()
 let browserSetSelection = null
 let exclusionMatcher = () => false
 let settingsGroup = "emotes"
+let pickerEnabled = true
+let pickerLayout = "tabs"
 
 const cleanMatchPriority = (value) => value === "case" ? "case" : "channel"
 const cleanRenderMode = (value) => ["light", "balanced", "full"].includes(value) ? value : "balanced"

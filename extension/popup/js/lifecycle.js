@@ -1,11 +1,13 @@
 async function init() {
     const appStatePromise = ext.runtime.sendMessage({ type: "GET_APP_STATE" }).catch(() => ({}))
     const tabInfo = await getTabInfo()
+    currentTabId = tabInfo.id
     currentTabUrl = tabInfo.url
     hostname = tabInfo.hostname
     if (hostname) siteLabel.textContent = hostname
     else {
         toggleSiteBtn.disabled = true
+        resetPickerPositionBtn.disabled = true
         siteLabel.textContent = "this site"
     }
     const verdict = tabInfo.url
@@ -18,7 +20,6 @@ async function init() {
 
     const appState = await appStatePromise
     const {
-        enabled = true,
         disabledSites = [],
         enabledUnsupportedSites = [],
         customSets: storedSets = [],
@@ -46,20 +47,29 @@ async function init() {
         lastCheck = appState.lastCheck || null,
         siteCfg: storedSiteCfg = null,
         siteCfgAt = null,
-        siteRenderModes: storedSiteRenderModes = {}
+        siteRenderModes: storedSiteRenderModes = {},
+        siteAccessDefault: storedSiteAccessDefault = false,
+        enabledSites: storedEnabledSites = [],
+        pickerEnabled: storedPickerEnabled = true,
+        pickerLayout: storedPickerLayout = "tabs"
     } = await ext.storage.local.get([
-        "enabled", "disabledSites", "enabledUnsupportedSites", "customSets", "channelSettings",
+        "disabledSites", "enabledUnsupportedSites", "customSets", "channelSettings",
         "emoteSize", "emoteSet", "excludedEmote", "caseSensitive", "zeroWidthEmote", "zeroWidthText", "matchPriority", "renderMode",
         "emoteHoverStyle", "emoteHoverLayout", "emoteHoverTemplate", "emoteHoverDelay", "lastReWarn", "pendingDraft",
         "initStatus", "emoteLoadStatus", "channelOperation", "autoCheckUpdates",
-        "updateCheckIntervalHours", "lastCheck", "siteCfg", "siteCfgAt", "siteRenderModes", "maintainerGuidance"
+        "updateCheckIntervalHours", "lastCheck", "siteCfg", "siteCfgAt", "siteRenderModes", "maintainerGuidance",
+        "siteAccessDefault", "enabledSites", "pickerEnabled", "pickerLayout"
     ])
 
-    setSwitch(toggleEnabledBtn, enabled)
-    const siteOn = hostname
-        ? (isUnsupportedSite ? enabledUnsupportedSites.includes(hostname) : !disabledSites.includes(hostname))
-        : true
-    setSwitch(toggleSiteBtn, siteOn)
+    siteAccessDefault = typeof hasAllSitesPermission === "function"
+        ? await hasAllSitesPermission()
+        : storedSiteAccessDefault === true
+    enabledSites = Array.isArray(storedEnabledSites) ? storedEnabledSites : []
+    if (hostname) setCurrentSiteSwitch(currentSiteIsOn(hostname, {
+        enabledSites,
+        disabledSites,
+        enabledUnsupportedSites
+    }))
 
     const migrated = migrateSet(storedSets)
     saved = fillDraft({
@@ -89,6 +99,10 @@ async function init() {
     setPopupEmote(loadedEmotes)
     syncDraftGlobals()
     emoteHoverStatusEl.textContent = `Preview: ${formatHoverSample(emoteHoverTemplateInput.value)}`
+    pickerEnabled = storedPickerEnabled !== false
+    pickerLayout = storedPickerLayout === "sidebar" ? "sidebar" : "tabs"
+    pickerEnabledInput.checked = pickerEnabled
+    pickerLayoutSelect.value = pickerLayout
     siteRuleCount = Array.isArray(storedSiteCfg && storedSiteCfg.siteRules)
         ? storedSiteCfg.siteRules.length
         : verdict.ruleCount
@@ -114,11 +128,14 @@ async function init() {
     renderHome()
     renderEmoteBrowser(true)
     renderSettingsData()
+    if (typeof renderSiteAccess === "function") await renderSiteAccess()
+    if (typeof consumeSiteAccessPermissionResult === "function") await consumeSiteAccessPermissionResult()
     refreshStorageUsage()
     updateSaveBar()
     renderActivity(initStatus, emoteLoadStatus, channelOperation)
     checkBanner()
     reEmoteCount()
+    if (typeof maybeStartOnboarding === "function") await maybeStartOnboarding()
 }
 
 function renderActivity(initStatus, emoteLoadStatus, channelOperation) {
@@ -290,6 +307,21 @@ ext.storage.onChanged.addListener((changes, area) => {
             ? cleanRenderMode(siteRenderModes[hostname])
             : "inherit"
     }
+    if (changes.pickerEnabled) {
+        pickerEnabled = changes.pickerEnabled.newValue !== false
+        pickerEnabledInput.checked = pickerEnabled
+    }
+    if (changes.pickerLayout) {
+        pickerLayout = changes.pickerLayout.newValue === "sidebar" ? "sidebar" : "tabs"
+        pickerLayoutSelect.value = pickerLayout
+    }
+    if (changes.siteAccessDefault || changes.enabledSites || changes.disabledSites
+        || changes.enabledUnsupportedSites) {
+        if (changes.siteAccessDefault) siteAccessDefault = changes.siteAccessDefault.newValue === true
+        if (changes.enabledSites) enabledSites = Array.isArray(changes.enabledSites.newValue)
+            ? changes.enabledSites.newValue : []
+        renderSiteAccess?.().catch(() => { })
+    }
     if (changes.siteCfg || changes.siteCfgAt || changes.siteRenderModes || changes.maintainerGuidance) renderSettingsData()
 })
 
@@ -326,9 +358,13 @@ const migrateSet = (stored) => (Array.isArray(stored) ? stored : []).map(s => {
 async function getTabInfo() {
     try {
         const [tab] = await ext.tabs.query({ active: true, currentWindow: true })
-        if (!tab || !tab.url) return { hostname: null, url: null }
-        return { hostname: new URL(tab.url).hostname || null, url: tab.url }
-    } catch { return { hostname: null, url: null } }
+        if (!tab || !tab.url) return { id: null, hostname: null, url: null }
+        return {
+            id: Number.isInteger(tab.id) ? tab.id : null,
+            hostname: new URL(tab.url).hostname || null,
+            url: tab.url
+        }
+    } catch { return { id: null, hostname: null, url: null } }
 }
 
 async function getVerdict(url) {

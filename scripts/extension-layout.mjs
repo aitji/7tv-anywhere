@@ -1,5 +1,6 @@
 export const backgroundModules = [
     "background/00-core.js",
+    "background/02-site-access.js",
     "background/05-site-rules.js",
     "background/10-runtime.js",
     "background/20-drafts.js",
@@ -14,6 +15,7 @@ export const popupScripts = [
     "js/lifecycle.js",
     "js/notices.js",
     "js/site-controls.js",
+    "js/site-access.js",
     "js/channel-list.js",
     "js/channel-manage.js",
     "js/draft.js",
@@ -25,6 +27,8 @@ export const popupScripts = [
     "js/emote-browser.js",
     "js/settings.js",
     "js/settings-view.js",
+    "js/onboarding.js",
+    "js/onboarding-access.js",
     "js/entry.js"
 ]
 
@@ -35,5 +39,7 @@ export const popupStyles = [
     "css/channels.css",
     "css/settings.css",
     "css/browser.css",
+    "css/onboarding.css",
+    "css/onboarding-access.css",
     "css/responsive.css"
 ]

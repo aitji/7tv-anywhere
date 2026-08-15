@@ -161,6 +161,11 @@ async function loadEmote() {
         const channelName = source ? source.channelName : "Global 7TV"
         const setId = source ? source.id : "global"
         const setName = source ? source.setName : "Global 7TV"
+        const channelAvatarUrl = source
+            ? normalizeLoadedAvatarUrl(source.channelAvatarUrl
+                || item.value.owner?.avatar_url
+                || item.value.owner?.avatarUrl)
+            : ""
         for (const emote of item.value.emotes || []) {
             if (!emote || !emote.name || !emote.data || !emote.data.host || !emote.data.host.url) continue
             const sourceKey = `${channelId}\0${emote.name}`
@@ -171,6 +176,7 @@ async function loadEmote() {
                 url: `https:${emote.data.host.url}/${clamp(size)}x.webp`,
                 channelId,
                 channelName,
+                channelAvatarUrl,
                 setId,
                 setName,
                 priority: index
@@ -218,6 +224,12 @@ async function loadEmote() {
         ))
     } catch { }
     return { emotes: emote, warning }
+}
+
+function normalizeLoadedAvatarUrl(value) {
+    const url = String(value || "").trim()
+    if (url.startsWith("//")) return `https:${url}`
+    return /^https:\/\//i.test(url) ? url : ""
 }
 
 

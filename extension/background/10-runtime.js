@@ -217,6 +217,27 @@ ext.runtime.onMessage.addListener((msg, _sender, sendRes) => {
         case "GET_SUGGESTIONS": getSugg(msg.query || "").then(suggestions => sendRes({ suggestions }))
             return true
 
+        case "GET_PICKER_DATA": initialize()
+            .then(() => getPickerData())
+            .then(sendRes)
+            .catch(err => sendRes({ emotes: [], channels: [], error: errorText(err) }))
+            return true
+
+        case "SYNC_SITE_ACCESS": syncAllSiteAccess()
+            .then(allSites => sendRes({ success: true, allSites }))
+            .catch(err => sendRes({ success: false, allSites: false, error: errorText(err) }))
+            return true
+
+        case "INJECT_SITE_RUNTIME": injectSiteRuntime(Number(msg.tabId))
+            .then(sendRes)
+            return true
+
+        case "RESET_ALL_DATA": resetOptionalSiteAccess()
+            .then(() => ext.storage.local.clear())
+            .then(() => sendRes({ success: true }))
+            .catch(err => sendRes({ success: false, error: errorText(err) }))
+            return true
+
         case "ADD_CHANNEL_TO_DRAFT": addChannel(msg.query || "")
             .then(result => sendRes(result))
             .catch(err => sendRes({ error: errorText(err) }))

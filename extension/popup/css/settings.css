@@ -229,6 +229,135 @@
     margin-top: 9px;
 }
 
+.site-access-default-row,
+.site-access-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.site-access-default-row {
+    width: 100%;
+    margin-top: 9px;
+    padding: 9px;
+    color: inherit;
+    text-align: left;
+    background: var(--bg-elevated-2);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-sm);
+    font: inherit;
+    cursor: pointer;
+}
+
+.site-access-default-row:hover,
+.site-access-default-row:focus-visible {
+    border-color: var(--text-tertiary);
+    outline: none;
+}
+
+.site-access-default-row[aria-checked=true] .switch {
+    background: var(--green);
+}
+
+.site-access-default-row[aria-checked=true] .switch-knob {
+    transform: translate(13px, -50%);
+}
+
+.site-access-default-row strong,
+.site-access-row strong {
+    display: block;
+    color: var(--text);
+    font-size: 11.5px;
+}
+
+.site-access-default-row p,
+.site-access-row-main>div>span {
+    margin: 2px 0 0;
+    color: var(--text-tertiary);
+    font-size: 10.5px;
+}
+
+.site-access-head {
+    align-items: end;
+    margin: 10px 0 5px;
+}
+
+.site-access-head .settings-label {
+    margin: 0;
+}
+
+.site-access-list {
+    display: grid;
+    gap: 2px;
+    max-height: 190px;
+    overflow-y: auto;
+}
+
+.site-access-privacy {
+    margin: 0 0 6px;
+}
+
+.site-access-row {
+    gap: 5px;
+    padding: 0;
+    border-top: 1px solid var(--border-soft);
+}
+
+.site-access-row-main {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex: 1;
+    gap: 9px;
+    padding: 7px 5px;
+    color: inherit;
+    text-align: left;
+    background: transparent;
+    border: 0;
+    font: inherit;
+    cursor: pointer;
+}
+
+.site-access-row-main:hover,
+.site-access-row-main:focus-visible {
+    background: var(--bg-elevated-2);
+    outline: none;
+}
+
+.site-access-row-main>div {
+    overflow: hidden;
+}
+
+.site-access-row strong,
+.site-access-row-main>div>span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.site-access-remove {
+    display: grid;
+    place-items: center;
+    flex: 0 0 27px;
+    width: 27px;
+    height: 27px;
+    padding: 0;
+    color: var(--text-tertiary);
+    background: transparent;
+    border: 0;
+    border-radius: 5px;
+    font: 17px/1 inherit;
+    cursor: pointer;
+}
+
+.site-access-remove:hover,
+.site-access-remove:focus-visible {
+    color: var(--text);
+    background: var(--bg-elevated-2);
+    outline: none;
+}
+
 .settings-copy {
     margin: 7px 0 9px;
 }

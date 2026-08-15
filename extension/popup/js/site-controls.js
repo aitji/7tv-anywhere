@@ -30,35 +30,6 @@ tabBtns.forEach(btn => btn.addEventListener("click", () => {
     if (tab === "browser" && typeof showBrowserChannels === "function") showBrowserChannels()
 }))
 
-toggleEnabledBtn.addEventListener("click", async () => {
-    const next = !isOn(toggleEnabledBtn)
-    setSwitch(toggleEnabledBtn, next)
-    await ext.storage.local.set({ enabled: next })
-})
-
-toggleSiteBtn.addEventListener("click", async () => {
-    if (!hostname) return
-    const next = !isOn(toggleSiteBtn)
-    setSwitch(toggleSiteBtn, next)
-
-    if (isUnsupportedSite) {
-        const { enabledUnsupportedSites = [] } = await ext.storage.local.get("enabledUnsupportedSites")
-        const updated = next
-            ? Array.from(new Set([...enabledUnsupportedSites, hostname]))
-            : enabledUnsupportedSites.filter(h => h !== hostname)
-
-        await ext.storage.local.set({ enabledUnsupportedSites: updated })
-        return
-    }
-
-    const { disabledSites = [] } = await ext.storage.local.get("disabledSites")
-    const updated = next
-        ? disabledSites.filter(h => h !== hostname)
-        : Array.from(new Set([...disabledSites, hostname]))
-
-    await ext.storage.local.set({ disabledSites: updated })
-})
-
 async function checkBanner() {
     updateNoticeState = null
     try {
@@ -68,4 +39,3 @@ async function checkBanner() {
     } catch { }
     renderNotice()
 }
-

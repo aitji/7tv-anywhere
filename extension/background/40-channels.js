@@ -23,6 +23,7 @@ async function refreshMain(customSet, channelSetting) {
         const targetId = pref.knownActiveSetId || info.id
         let updated = false
         let channelName = user.display_name || user.username || channelId
+        const channelAvatarUrl = normalizeRefreshedAvatarUrl(user.avatar_url || user.avatarUrl)
         customSet = customSet.map(set => {
             if (set.channelId !== channelId) return set
             channelName = set.channelName || channelName
@@ -34,10 +35,15 @@ async function refreshMain(customSet, channelSetting) {
                     setName: info.name,
                     count: info.count,
                     preview: info.preview,
+                    channelAvatarUrl: channelAvatarUrl || set.channelAvatarUrl || "",
                     enabled: true
                 }
             }
-            return { ...set, enabled: false }
+            return {
+                ...set,
+                channelAvatarUrl: channelAvatarUrl || set.channelAvatarUrl || "",
+                enabled: false
+            }
         })
         if (!updated) customSet.push({
             id: info.id,
@@ -46,6 +52,7 @@ async function refreshMain(customSet, channelSetting) {
             preview: info.preview,
             channelId,
             channelName,
+            channelAvatarUrl,
             enabled: true
         })
         channelSetting[channelId] = {
@@ -61,4 +68,10 @@ async function refreshMain(customSet, channelSetting) {
         channelSettings: channelSetting
     })
     return customSet
+}
+
+function normalizeRefreshedAvatarUrl(value) {
+    const url = String(value || "").trim()
+    if (url.startsWith("//")) return `https:${url}`
+    return /^https:\/\//i.test(url) ? url : ""
 }

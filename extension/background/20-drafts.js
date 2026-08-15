@@ -110,6 +110,7 @@ function applyResult(res, state) {
             preview: set.preview || [],
             channelId: res.channel.id,
             channelName: res.channel.name,
+            channelAvatarUrl: res.channel.avatarUrl || "",
             enabled: set.id === res.activeSetId
         }))
 

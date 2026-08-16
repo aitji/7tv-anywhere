@@ -101,6 +101,12 @@
             "subdomain": true,
             "note": ":oh: god :NO:"
         },
+        {
+            "flag": "not_support",
+            "host": "reddit.com",
+            "subdomain": true,
+            "note": "performance degrade"
+        },
         // support
         {
             "flag": "support",
@@ -136,12 +142,6 @@
             "host": "diagrams.net",
             "subdomain": true,
             "note": "it work somehow"
-        },
-        {
-            "flag": "support",
-            "host": "reddit.com",
-            "subdomain": true,
-            "note": "emote rending is mess up, but it still kinda work"
         },
         {
             "flag": "support",

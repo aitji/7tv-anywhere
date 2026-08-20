@@ -40,6 +40,5 @@ export const popupStyles = [
     "css/settings.css",
     "css/browser.css",
     "css/onboarding.css",
-    "css/onboarding-access.css",
     "css/responsive.css"
 ]

@@ -1,0 +1,198 @@
+.onboarding-live-preview {
+    box-shadow: 0 -12px 22px var(--bg);
+}
+
+.onboarding-live-stack {
+    display: grid;
+    grid-template-columns: .85fr 1.15fr;
+    gap: 7px;
+    padding-top: 6px;
+    background: linear-gradient(transparent, var(--bg) 12px);
+}
+
+.onboarding-live-stack .onboarding-preview {
+    min-height: 104px;
+    padding: 7px;
+}
+
+.onboarding-live-stack .onboarding-emote-line {
+    min-height: 48px;
+    padding: 6px;
+}
+
+.onboarding-live-stack .onboarding-hover-preview {
+    gap: 5px;
+    min-height: 67px;
+    padding: 6px;
+    font-size: 9.5px;
+}
+
+.onboarding-live-stack .onboarding-hover-preview img {
+    width: 40px;
+    height: 40px;
+}
+
+.onboarding-emote-line {
+    display: flex;
+    align-items: end;
+    gap: 7px;
+    min-height: 54px;
+    padding: 9px;
+    color: var(--text-secondary);
+    background: #10131a;
+    border-radius: var(--radius-sm);
+}
+
+.onboarding-emote-stack {
+    position: relative;
+    display: inline-grid;
+    place-items: end center;
+    height: var(--preview-size, 28px);
+}
+
+.onboarding-emote-stack img {
+    grid-area: 1 / 1;
+    display: block;
+    height: var(--preview-size, 28px);
+    max-width: 96px;
+    object-fit: contain;
+}
+
+.onboarding-emote-stack img+img {
+    z-index: 1;
+}
+
+.onboarding-picker-preview {
+    display: grid;
+    grid-template-rows: auto auto 1fr;
+    height: 150px;
+    overflow: hidden;
+    color: var(--text-secondary);
+    background: #10131a;
+    border-radius: var(--radius-sm);
+}
+
+.onboarding-picker-preview.sidebar {
+    grid-template-columns: 42px 1fr;
+    grid-template-rows: auto 1fr;
+}
+
+.onboarding-picker-search {
+    margin: 7px;
+    padding: 6px 8px;
+    background: var(--bg-elevated-2);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+}
+
+.onboarding-picker-nav {
+    display: flex;
+    gap: 4px;
+    padding: 0 7px 6px;
+    overflow: hidden;
+}
+
+.onboarding-picker-nav span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: none;
+    padding: 4px 6px;
+    background: var(--bg-elevated-2);
+    border-radius: 4px;
+    font-size: 9px;
+}
+
+.onboarding-picker-nav img,
+.onboarding-picker-nav i {
+    display: grid;
+    place-items: center;
+    width: 16px;
+    height: 16px;
+    flex: none;
+    object-fit: cover;
+    overflow: hidden;
+    border-radius: 50%;
+    background: var(--bg-elevated);
+    color: var(--text-soft);
+    font: 700 7px/1 var(--font-ui);
+    font-style: normal;
+}
+
+.onboarding-picker-preview.sidebar .onboarding-picker-search {
+    grid-column: 1 / 3;
+}
+
+.onboarding-picker-preview.sidebar .onboarding-picker-nav {
+    flex-direction: column;
+    padding: 4px;
+}
+
+.onboarding-picker-preview.sidebar .onboarding-picker-nav span {
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    padding: 2px;
+}
+
+.onboarding-picker-body {
+    padding: 7px;
+    overflow: hidden;
+}
+
+.onboarding-picker-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 5px;
+    margin-top: 5px;
+}
+
+.onboarding-picker-grid span {
+    height: 34px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-soft);
+    border-radius: 5px;
+}
+
+.onboarding-hover-preview {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    color: var(--text);
+    background: #18181b;
+    border: 1px solid #3a3a3d;
+    border-radius: 9px;
+}
+
+.onboarding-hover-stage {
+    position: relative;
+}
+
+.onboarding-preview-label {
+    display: block;
+    margin: 0 0 5px;
+    color: var(--text-tertiary);
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+}
+
+.onboarding-cursor {
+    position: absolute;
+    right: 42px;
+    bottom: -8px;
+    width: 25px;
+    height: 25px;
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .5));
+    transform: rotate(-10deg);
+}
+
+.onboarding-hover-preview img {
+    width: 56px;
+    height: 56px;
+    object-fit: contain;
+}
+

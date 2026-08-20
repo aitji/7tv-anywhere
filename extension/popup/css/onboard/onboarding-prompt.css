@@ -1,0 +1,82 @@
+.onboarding-permission-box {
+    width: min(320px, calc(100% - 24px));
+}
+
+.onboarding-prompt {
+    width: min(410px, calc(100vw - 28px));
+    padding: 30px;
+    text-align: center;
+}
+
+.onboarding-prompt-icon {
+    width: 52px;
+    height: 52px;
+    margin-bottom: 14px;
+}
+
+.onboarding-prompt-kicker {
+    display: block;
+    color: var(--accent-hover);
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+}
+
+.onboarding-prompt h2 {
+    margin: 8px 0 8px;
+    color: var(--text);
+    font-size: 21px;
+}
+
+.onboarding-prompt p {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.onboarding-prompt-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 20px;
+}
+
+body.onboarding-tab {
+    width: 100vw;
+    height: 100vh;
+    max-height: none;
+    overflow: hidden;
+    padding: 0;
+}
+
+body.onboarding-tab> :not(#onboarding-overlay):not(#onboarding-warning-overlay):not(#onboarding-permission-overlay) {
+    display: none !important;
+}
+
+body.onboarding-tab .onboarding-overlay {
+    position: static;
+    display: block;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    background: var(--bg);
+}
+
+body.onboarding-tab .onboarding-overlay[hidden] {
+    display: none;
+}
+
+body.onboarding-tab .onboarding-box {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+}
+
+body.onboarding-tab .onboarding-prompt {
+    display: none !important;
+}
+

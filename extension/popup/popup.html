@@ -135,6 +135,15 @@
                     </button>
                 </section>
 
+                <section id="twitch-emote-card" class="field toggle-card">
+                    <label class="check-row">
+                        <input type="checkbox" id="twitch-emote-toggle" checked>
+                        <span>Include Twitch channel emotes</span>
+                    </label>
+                    <span class="hint">Adds the channel's follower, subscriber, and Bits emotes alongside its 7TV
+                        sets. No Twitch sign-in is needed.</span>
+                </section>
+
                 <span class="hint error" id="manage-overlap-warning" hidden></span>
 
                 <div id="manage-set-list" class="card-list"></div>
@@ -231,7 +240,7 @@
                             <path d="M13.5 8a5.5 5.5 0 1 1-1.66-3.94M13.5 2v3.5H10" stroke="currentColor"
                                 stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" />
                         </svg>
-                        Reload emotes from 7TV
+                        Reload emotes
                     </button>
                     <span class="hint" id="emote-count"></span>
                     <span class="hint error" id="reload-warning"></span>
@@ -404,7 +413,7 @@
                         <span>Download compatibility notes and recommendations</span>
                     </label>
                     <p class="hint settings-copy">Turn this off to stop background requests for maintainer guidance.
-                        7TV emotes and update checks are separate</p>
+                        emote downloads and update checks are separate</p>
                     <p id="site-rules-summary" class="settings-data-copy"></p>
                     <button id="refresh-site-rules" class="btn-secondary btn-full">Refresh site rules</button>
                     <span id="site-rules-status" class="hint" role="status"></span>

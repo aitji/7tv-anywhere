@@ -43,13 +43,16 @@ async function resChannel(rQuery) {
 async function channelRes(user) {
     const ownSet = user.emote_sets || []
     const set = (await Promise.all(ownSet.map(item => getSet(item.id)))).filter(Boolean)
+    const twitch = twitchIdentity(user)
 
     return {
         type: "channel",
         channel: {
             id: user.id,
             name: user.display_name || user.username || user.id,
-            avatarUrl: normalizeAvatarUrl(user.avatar_url || user.avatarUrl)
+            avatarUrl: normalizeAvatarUrl(user.avatar_url || user.avatarUrl),
+            twitchId: twitch.id,
+            twitchLogin: twitch.login
         },
         sets: set,
         activeSetId: activeId(user)
@@ -117,13 +120,20 @@ async function getTwitch(username) {
         const data = await cRes.json()
 
         const mainId = (data.emote_set && data.emote_set.id) || data.emote_set_id || null
-        if (data.user) return { ...data.user, active_emote_set_id: mainId }
+        if (data.user) return {
+            ...data.user,
+            twitchId,
+            twitchLogin: data.username || lookup,
+            active_emote_set_id: mainId
+        }
 
         return {
             id: data.id,
             username: data.username,
             display_name: data.display_name,
             avatar_url: data.avatar_url,
+            twitchId,
+            twitchLogin: data.username || lookup,
             emote_sets: data.emote_set ? [data.emote_set] : [],
             active_emote_set_id: mainId
         }

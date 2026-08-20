@@ -52,10 +52,11 @@
         }
         const storageListeners = []
         const baseEmotes = [
-            { name: "PauseSama", id: "pause", url: "/extension/icons/icon-16.png", channelId: "test", channelName: "Test channel" },
-            { name: "LETSGO", id: "go", url: "/extension/icons/icon-16.png", channelId: "test", channelName: "Test channel" },
-            { name: "GlobalNormal", id: "global-normal", url: "/extension/icons/icon-16.png", channelId: "global", channelName: "Global 7TV" },
-            { name: "RainTime", id: "rain", url: "/extension/icons/icon-16.png", channelId: "global", channelName: "Global 7TV", zeroWidth: true }
+            { name: "PauseSama", id: "pause", url: "/extension/icons/icon-16.png", channelId: "test", channelName: "Test channel", provider: "7tv" },
+            { name: "LETSGO", id: "go", url: "/extension/icons/icon-16.png", channelId: "test", channelName: "Test channel", provider: "7tv" },
+            { name: "vedalCheer", id: "twitch-cheer", url: "/extension/icons/icon-16.png", channelId: "test", channelName: "Test channel", provider: "twitch", setName: "Twitch" },
+            { name: "GlobalNormal", id: "global-normal", url: "/extension/icons/icon-16.png", channelId: "global", channelName: "Global 7TV", provider: "7tv" },
+            { name: "RainTime", id: "rain", url: "/extension/icons/icon-16.png", channelId: "global", channelName: "Global 7TV", provider: "7tv", zeroWidth: true }
         ]
         const emotes = new URL(location.href).searchParams.has("large")
             ? baseEmotes.concat(Array.from({ length: 1200 }, (_, index) => ({
@@ -69,6 +70,7 @@
 
         globalThis.chrome = {
             runtime: {
+                getURL: path => new URL(`/extension/${path}`, location.href).href,
                 sendMessage: async message => {
                     if (message.type === "IS_SITE_UNSUPPORTED") return { unsupported: false }
                     if (message.type === "GET_EMOTES") return { emotes }

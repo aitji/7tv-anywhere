@@ -1,7 +1,7 @@
 # Privacy Policy for 7TV Anywhere
 
 **Effective date:** July 24, 2026  
-**Last updated:** August 15, 2026
+**Last updated:** August 20, 2026
 
 7TV Anywhere is developed and maintained by aitji ("7TV Anywhere," "we," "us," or "our"). This Privacy Policy explains how the 7TV Anywhere browser extension (the "Extension") handles information.
 
@@ -16,7 +16,7 @@
 - does not record your browsing history or keystrokes; and
 - does not operate a developer-controlled server that receives Extension user data.
 
-The Extension processes webpage content locally to display 7TV emotes and provide emote autocomplete and an emote picker. It makes limited network requests to third-party services when necessary to retrieve emote data, resolve channel identifiers, download compatibility rules, and check for Extension updates.
+The Extension processes webpage content locally to display 7TV and configured Twitch channel emotes and provide emote autocomplete and an emote picker. It makes limited network requests to third-party services when necessary to retrieve emote data, resolve channel identifiers, download compatibility rules, and check for Extension updates.
 
 ## 2. Information Handled by the Extension
 
@@ -24,7 +24,7 @@ The Extension processes webpage content locally to display 7TV emotes and provid
 
 The Extension reads text displayed on supported webpages to recognize emote names and replace them visually with corresponding emote images. It also observes compatible text fields while you type to provide emote autocomplete.
 
-This processing occurs locally in your browser. Raw website text, personal communications, and text-field contents are not transmitted to us or to third parties by the Extension, and the Extension does not persist a copy of this content. When the Extension displays an emote, your browser requests the corresponding image from 7TV's content-delivery service. That request identifies the public emote image being displayed but does not include the surrounding webpage text.
+This processing occurs locally in your browser. Raw website text, personal communications, and text-field contents are not transmitted to us or to third parties by the Extension, and the Extension does not persist a copy of this content. When the Extension displays an emote, your browser requests the corresponding image from 7TV's or Twitch's content-delivery service. That request identifies the public emote image being displayed but does not include the surrounding webpage text.
 
 ### 2.2 Current website
 
@@ -34,7 +34,7 @@ When you open the Extension popup, the Extension reads the active tab's URL or h
 
 The Extension stores information locally using the browser's extension storage, including:
 
-- enabled channels and 7TV emote sets;
+- enabled channels, 7TV emote sets, and per-channel Twitch-emote choices;
 - channel and emote preferences;
 - picker favorites and local emote-use counts;
 - excluded emotes and websites;
@@ -50,7 +50,7 @@ Remote emote and channel images are loaded with a `no-referrer` policy, which pr
 
 ### 2.4 Channel and emote-set identifiers
 
-When you add or refresh a Twitch channel or 7TV emote set, the channel name, channel identifier, or emote-set identifier you provide may be sent to 7TV or DecAPI to locate the requested public emote data. These identifiers are used only to perform the request you initiated or to keep an enabled set current.
+When you add or refresh a Twitch channel or 7TV emote set, the channel name, channel identifier, or emote-set identifier you provide may be sent to 7TV or DecAPI to locate the requested public emote data. When Twitch channel emotes are enabled for a configured channel, its public Twitch channel name or identifier is sent to tEmotes to retrieve that channel's public emote metadata. These identifiers are used only to perform the request you initiated or to keep enabled emotes current.
 
 ### 2.5 Technical request information
 
@@ -61,7 +61,9 @@ Like ordinary website requests, requests made to third-party services may automa
 The Extension may communicate with:
 
 - **7TV (`7tv.io` and 7TV content-delivery domains):** to retrieve public channel, emote-set, emote metadata, and emote images;
-- **DecAPI (`decapi.me`):** to resolve a Twitch channel name to its public Twitch identifier; and
+- **DecAPI (`decapi.me`):** to resolve a Twitch channel name to its public Twitch identifier;
+- **tEmotes (`emotes.adamcy.pl`):** to retrieve public Twitch channel emote metadata and Twitch image URLs;
+- **Twitch's image content-delivery service (`static-cdn.jtvnw.net`):** to retrieve Twitch emote images; and
 - **jsDelivr (`cdn.jsdelivr.net`):** to retrieve 7TV Anywhere compatibility rules and publicly available update information.
 
 These services process requests under their own terms and privacy practices. 7TV Anywhere does not control their systems or retention practices. Except for the public channel or emote-set identifiers described above and the emote-image request necessary to display a selected emote, the Extension does not send raw webpage text, text-field contents, stored settings, or a list of visited websites to these services.
@@ -70,7 +72,7 @@ These services process requests under their own terms and privacy practices. 7TV
 
 Information handled by the Extension is used solely to:
 
-- identify and display 7TV emotes;
+- identify and display 7TV and configured Twitch channel emotes;
 - provide emote autocomplete;
 - provide the emote picker, favorites, and frequently used ordering;
 - retrieve and maintain user-selected emote sets;

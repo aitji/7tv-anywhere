@@ -4,9 +4,10 @@ const ext = typeof browser === "undefined" ? chrome : browser
 // nerd config
 const SEVEN_TV_API = "https://7tv.io/v3"
 const THIRD_PARTY_API = "https://decapi.me"
+const TWITCH_EMOTE_API = "https://emotes.adamcy.pl/v1"
 
 const CACHE_TTL_MS = 60 * 60 * 1000
-const EMOTE_CACHE_VERSION = 4
+const EMOTE_CACHE_VERSION = 6
 const PARTIAL_RETRY_MS = 2 * 60 * 1000
 const PREVIEW_EMOTE_COUNT = 6
 const MAX_SUGGESTIONS = 25
@@ -42,6 +43,14 @@ let isInitChannelFly = null
 let queueDraft = Promise.resolve()
 
 const cloneState = (state) => JSON.parse(JSON.stringify(state))
+function twitchIdentity(user) {
+    const connection = Array.isArray(user && user.connections)
+        ? user.connections.find(item => String(item && item.platform || "").toUpperCase() === "TWITCH")
+        : null
+    const id = String(user && (user.twitchId || user.twitch_id) || connection && connection.id || "").trim()
+    const login = String(user && (user.twitchLogin || user.twitch_login) || connection && connection.username || "").trim()
+    return { id: /^\d+$/.test(id) ? id : "", login: /^[A-Za-z0-9_]+$/.test(login) ? login : "" }
+}
 function canonicalize(value) {
     if (Array.isArray(value)) return value.map(canonicalize)
     if (!value || typeof value !== "object") return value
@@ -235,12 +244,16 @@ async function doInit() {
                     channelId: result.channel.id,
                     channelName: result.channel.name,
                     channelAvatarUrl: result.channel.avatarUrl || "",
+                    twitchId: result.channel.twitchId || "",
+                    twitchLogin: result.channel.twitchLogin || "",
                     enabled: s.id === result.activeSetId
                 })),
                 channelSettings: {
                     [result.channel.id]: {
                         alwaysMain: true,
-                        knownActiveSetId: result.activeSetId
+                        knownActiveSetId: result.activeSetId,
+                        twitchId: result.channel.twitchId || "",
+                        twitchLogin: result.channel.twitchLogin || ""
                     }
                 },
                 isInitDone: true

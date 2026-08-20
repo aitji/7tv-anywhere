@@ -9,9 +9,9 @@
 
 **Take your favorite [7TV](https://7tv.app) emotes beyond Twitch!**
 
-Bring the emotes you love to chats, comments, and conversations across the web. 7TV Anywhere recognizes emote names in supported webpages, displays their familiar images alongside the text, and helps you find emotes with quick autocomplete and an in-page picker.
+Bring the emotes you love to chats, comments, and conversations across the web. 7TV Anywhere recognizes 7TV and configured Twitch channel emote names in supported webpages, displays their familiar images alongside the text, and helps you find emotes with quick autocomplete and an in-page picker.
 
-> 7TV Anywhere is an independent, unofficial extension and **is not** affiliated with or endorsed by 7TV.
+> 7TV Anywhere is an independent, unofficial extension and **is not** affiliated with or endorsed by 7TV or Twitch.
 
 # 7TV Anywhere
 - [7TV Anywhere](#7tv-anywhere-1)
@@ -25,11 +25,12 @@ Bring the emotes you love to chats, comments, and conversations across the web. 
 
 ## What you can do
 
-* [x] Render 7TV emotes in supported webpage text
+* [x] Render 7TV and configured Twitch channel emotes in supported webpage text
 * [x] Type `:emote` to search in compatible chats, comments, and text fields
 * [x] Open a searchable in-page picker with favorites, frequently used emotes, and channel categories
 * [x] Choose a compact sidebar or horizontal-tab picker layout
 * [x] Add emotes from Twitch channels or individual 7TV emote sets
+* [x] Include each configured channel's Twitch follower, subscriber, and Bits emotes
 * [x] Follow a channel's current main emote set automatically
 * [x] Browse configured channels, sets, and loaded emotes
 * [x] Preview disabled emote sets before enabling them

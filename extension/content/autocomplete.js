@@ -28,6 +28,14 @@
 
     const TRIGGER_RE = /:([A-Za-z0-9_]{1,})$/
     const DEBOUNCE_MS = 90
+    const SVG_NS = "http://www.w3.org/2000/svg"
+    const TWITCH_ICON = "M11.64 5.93h1.43v4.28h-1.43m3.93-4.28H17v4.28h-1.43M7 2 3.43 5.57v12.86h4.28V22l3.58-3.57h2.85L20.57 12V2m-1.43 9.29-2.85 2.85h-2.86l-2.5 2.5v-2.5H7.71V3.43h11.43Z"
+    const SEVEN_ICON = [
+        "m20.7465 5.48825 1.2334-2.1508.6661-1.1372L21.4125.04944V0h-6.5866l2.4669 4.3016.6908 1.18665h2.7629Z",
+        "m7.15395 19.9258 7.40065-12.9048.9127-1.5822-2.4669-4.3016L12.3097.02476H1.8995L.66606 2.17556 0 3.31276l1.23344 2.1508v.04945H9.12745L2.96025 16.267l-.8634 1.5328 1.23344 2.1508V20h3.82366",
+        "M17.4655 19.9257h3.7743l4.9338-8.6032.8634-1.4833-1.2334-2.1508v-.04941h-3.799l-2.4669 4.30161-.1727.3214-2.4669-4.30162-.1726-.32139-2.4669 4.30161-.6907 1.1866 3.7003 6.4524.1973.3461Z"
+    ]
+    const OVERLAY_ICON = "m10.05 110.42 112 64a12 12 0 0 0 11.9 0l112-64a12 12 0 0 0 0-20.84l-112-64a12 12 0 0 0-11.9 0l-112 64a12 12 0 0 0 0 20.84ZM128 49.82 215.81 100 128 150.18 40.19 100Zm122.42 92.23A12 12 0 0 1 246 158.42l-112 64a12 12 0 0 1-11.9 0l-112-64A12 12 0 1 1 22 137.58l106 60.6 106-60.6a12 12 0 0 1 16.42 4.47Z"
 
     let isActive = false
     let siteEnabled = false
@@ -304,6 +312,38 @@
         }
     }
 
+    const createSvg = (viewBox, paths) => {
+        const svg = document.createElementNS(SVG_NS, "svg")
+        svg.setAttribute("viewBox", viewBox)
+        svg.setAttribute("fill", "currentColor")
+        svg.setAttribute("aria-hidden", "true")
+        for (const d of Array.isArray(paths) ? paths : [paths]) {
+            const path = document.createElementNS(SVG_NS, "path")
+            path.setAttribute("d", d)
+            svg.appendChild(path)
+        }
+        return svg
+    }
+
+    const createSourceBadge = emote => {
+        const isTwitch = emote && emote.provider === "twitch"
+        const badge = document.createElement("span")
+        badge.className = `ea-source-badge ${isTwitch ? "twitch" : "seven"}`
+        badge.title = isTwitch ? "Twitch emote" : "7TV emote"
+        badge.appendChild(createSvg(isTwitch ? "0 0 24 24" : "0 0 28 20", isTwitch ? TWITCH_ICON : SEVEN_ICON))
+        badge.appendChild(document.createTextNode(isTwitch ? "Twitch" : "7TV"))
+        return badge
+    }
+
+    const createOverlayBadge = () => {
+        const badge = document.createElement("span")
+        badge.className = "ea-overlay-badge"
+        badge.title = "Overlaying"
+        badge.setAttribute("aria-label", "Overlaying")
+        badge.appendChild(createSvg("0 0 256 256", OVERLAY_ICON))
+        return badge
+    }
+
     const ensureHost = () => {
         if (host) return
         host = document.createElement("div")
@@ -316,7 +356,7 @@
 
         shadow = host.attachShadow({ mode: "open" })
         const style = document.createElement("style")
-        style.textContent = `.ea-dropdown{position:fixed;width:min(260px,calc(100vw - 8px));max-height:min(260px,calc(100vh - 12px));overflow-y:auto;background:#161b22;border:1px solid #30363d;border-radius:8px;box-shadow:0 8px 24px rgba(1,4,9,0.6);padding:4px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;} .ea-item{display:flex;align-items:center;gap:8px;min-height:36px;padding:6px 8px;border-radius:6px;cursor:pointer;color:#c9d1d9;font-size:13px;line-height:1.2;} .ea-item img{width:24px;height:24px;object-fit:contain;flex-shrink:0;} .ea-copy{display:grid;min-width:0;gap:2px;} .ea-copy strong,.ea-copy small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;} .ea-copy strong{font-size:13px;font-weight:600;} .ea-copy small{color:#8b949e;font-size:10px;} .ea-item-active{background:#1f6feb33;color:#58a6ff;} .ea-status{padding:9px 10px;color:#8b949e;font-size:12px;} .ea-dropdown::-webkit-scrollbar{width:8px;} .ea-dropdown::-webkit-scrollbar-thumb{background:#30363d;border-radius:4px;} @media(pointer:coarse){.ea-item{min-height:44px;}}`
+        style.textContent = `.ea-dropdown{position:fixed;width:min(300px,calc(100vw - 8px));max-height:min(260px,calc(100vh - 12px));overflow-y:auto;background:#161b22;border:1px solid #30363d;border-radius:8px;box-shadow:0 8px 24px rgba(1,4,9,0.6);padding:4px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;} .ea-item{display:flex;align-items:center;gap:8px;min-height:36px;padding:6px 8px;border-radius:6px;cursor:pointer;color:#c9d1d9;font-size:13px;line-height:1.2;} .ea-item img{width:24px;height:24px;object-fit:contain;flex-shrink:0;} .ea-copy{display:grid;flex:1;min-width:0;gap:2px;} .ea-copy strong,.ea-copy small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;} .ea-copy strong{font-size:13px;font-weight:600;} .ea-copy small{color:#8b949e;font-size:10px;} .ea-badges{display:flex;flex:none;align-items:center;gap:3px}.ea-source-badge,.ea-overlay-badge{display:inline-flex;box-sizing:border-box;align-items:center;justify-content:center;height:18px;color:#f4f0ff;background:#252b35;border:1px solid #3a424e;border-radius:5px}.ea-source-badge{gap:3px;padding:0 5px;font-size:9px;font-weight:700}.ea-source-badge.twitch{color:#b68cff}.ea-source-badge svg{width:13px;height:10px}.ea-source-badge.twitch svg{width:11px;height:11px}.ea-overlay-badge{width:18px;color:#fc8dc7}.ea-overlay-badge svg{width:12px;height:12px}.ea-item-active{background:#1f6feb33;color:#58a6ff;} .ea-status{padding:9px 10px;color:#8b949e;font-size:12px;} .ea-dropdown::-webkit-scrollbar{width:8px;} .ea-dropdown::-webkit-scrollbar-thumb{background:#30363d;border-radius:4px;} @media(pointer:coarse){.ea-item{min-height:44px;}}`
         shadow.appendChild(style)
 
         listEl = document.createElement("div")
@@ -351,6 +391,12 @@
             source.textContent = emote.channelName || "Global 7TV"
             copy.appendChild(source)
             item.appendChild(copy)
+
+            const badges = document.createElement("span")
+            badges.className = "ea-badges"
+            badges.appendChild(createSourceBadge(emote))
+            if (emote.zeroWidth) badges.appendChild(createOverlayBadge())
+            item.appendChild(badges)
 
             item.addEventListener("pointerdown", (e) => {
                 e.preventDefault()
@@ -407,7 +453,7 @@
         const rect = ctx.kind === "field" ? getFieldRect(el, ctx.end) : getEditRect(ctx)
         if (!rect) return
 
-        const width = Math.min(260, Math.max(160, window.innerWidth - 8))
+        const width = Math.min(300, Math.max(160, window.innerWidth - 8))
         const margin = 6
         let left = rect.left
         let top = rect.bottom + margin

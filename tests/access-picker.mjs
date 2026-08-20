@@ -104,8 +104,10 @@ for (const required of [
     "grid-template-columns:48px minmax(0,1fr)", "pickerTriggerPositions",
     "TOUCH_DRAG_DELAY", "virtual-grid", "GRID_PRELOAD_PX", "updateVirtualRows",
     "scrollbar-color:#393445 #151822", ".panel.sidebar[hidden]{display:none}",
-    "Close 7TV emote picker", "Right-click an emote", "pickerOverlayFirst",
-    "Overlay emote", "contextmenu", "picker-loading", "prefers-reduced-motion:reduce",
+    "Close 7TV emote picker", "Right-click an emote", "pickerOverlayFirst", "pickerSort",
+    "Twitch emotes first", "7TV emotes first", "7TV overlays first", "provider-icon",
+    "TWITCH_ICON", "SEVEN_ICON", "OVERLAY_ICON", "createOverlayIcon", "Overlaying",
+    "contextmenu", "picker-loading", "prefers-reduced-motion:reduce",
     "captureScrollAnchor", "restoreScrollAnchor", "event.shiftKey",
     "VIRTUAL_SCROLL_IDLE_MS", "VIRTUAL_SCROLL_REFRESH_MS", "lastVirtualMountAt",
     'content.addEventListener("scroll", onContentScroll',
@@ -116,6 +118,13 @@ assert.ok(!picker.includes("Show more"), "picker must expose full fake height in
 assert.ok(!picker.includes("visibleCounts"), "picker must not retain incremental-page state")
 assert.ok(!picker.includes('content.addEventListener("scroll", scheduleVirtualUpdate'),
     "scroll events must not be mistaken for forced virtual updates")
+
+const autocomplete = await read("extension/content/autocomplete.js")
+for (const required of [
+    "ea-source-badge", "ea-overlay-badge", "createSourceBadge", "createOverlayBadge",
+    "Twitch emote", "7TV emote", "Overlaying", "TWITCH_ICON", "SEVEN_ICON", "OVERLAY_ICON"
+]) assert.ok(autocomplete.includes(required), `autocomplete must include ${required}`)
+assert.ok(autocomplete.includes("width:min(300px"), "autocomplete needs room for provider badges")
 
 const resolver = await read("extension/background/60-resolve.js")
 assert.ok(resolver.includes("avatarUrl: normalizeAvatarUrl"), "channel lookup must return its avatar")
@@ -177,13 +186,5 @@ for (const removed of ["COMPLETE_PERMISSION_HANDOFF", "completePermissionHandoff
     assert.ok(!backgroundRuntime.includes(removed), `background must not retain dead permission handoff ${removed}`)
 const backgroundAccess = await read("extension/background/02-site-access.js")
 assert.ok(!backgroundAccess.includes("rememberSiteAccess"), "background must not remember opened websites")
-
-const manualPlayground = await read("tests/manual-emote-playground.html")
-for (const required of [
-    'id="plain-input"', 'id="textarea-input"', 'id="rich-editor"',
-    'id="stress-test"', 'id="chat-feed"', "data-emoteanywhere-rendered"
-]) assert.ok(manualPlayground.includes(required), `manual playground must include ${required}`)
-assert.ok(!manualPlayground.includes("localhost"), "hosted manual playground must not assume localhost")
-assert.ok(!manualPlayground.includes('src="/extension/'), "hosted manual playground must be self-contained")
 
 console.log("verified optional host access, dynamic all-frame injection, picker preferences, and reusable onboarding")

@@ -35,7 +35,7 @@ async function saveDraft(input) {
     try {
         return await mutateDraft(async () => {
             const savedBefore = await ext.storage.local.get([
-                "customSets", "emoteSet", "excludedEmote",
+                "customSets", "channelSettings", "emoteSet", "excludedEmote",
                 "emoteSize", "caseSensitive", "matchPriority",
                 "renderMode", "zeroWidthEmote", "zeroWidthText",
                 "emoteHoverStyle", "emoteHoverLayout", "emoteHoverTemplate", "emoteHoverDelay", "lastReWarn"
@@ -60,8 +60,8 @@ async function saveDraft(input) {
             })
             await ext.storage.local.remove("pendingDraft")
             await setInitStatus("ready", "Ready!", { finishedAt: Date.now() })
-            const beforeKey = cacheKey(savedBefore.customSets || [])
-            const afterKey = cacheKey(state.customSets || [])
+            const beforeKey = cacheKey(savedBefore.customSets || [], savedBefore.channelSettings || {})
+            const afterKey = cacheKey(state.customSets || [], state.channelSettings || {})
             const sameEmoteSource = beforeKey === afterKey && clamp(savedBefore.emoteSize) === clamp(state.emoteSize)
             const result = sameEmoteSource && Array.isArray(savedBefore.emoteSet)
                 ? { emotes: savedBefore.emoteSet, warning: savedBefore.lastReWarn || null }
@@ -111,13 +111,17 @@ function applyResult(res, state) {
             channelId: res.channel.id,
             channelName: res.channel.name,
             channelAvatarUrl: res.channel.avatarUrl || "",
+            twitchId: res.channel.twitchId || "",
+            twitchLogin: res.channel.twitchLogin || "",
             enabled: set.id === res.activeSetId
         }))
 
     state.channelSettings[res.channel.id] = {
         alwaysMain: true,
         ...(state.channelSettings[res.channel.id] || {}),
-        knownActiveSetId: res.activeSetId
+        knownActiveSetId: res.activeSetId,
+        twitchId: res.channel.twitchId || "",
+        twitchLogin: res.channel.twitchLogin || ""
     }
     state.customSets.push(...entry)
 

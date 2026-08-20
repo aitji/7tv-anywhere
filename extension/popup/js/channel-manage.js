@@ -54,6 +54,8 @@ function renderManageView() {
     manageChannelSummary.textContent = `${enabled.length}/${set.length} active sets · ${sumSet} emote${sumSet == 1 ? '' : 's'}`
     manageChannelStatus.textContent = ""
     alwaysMainToggle.checked = !!pref.alwaysMain
+    twitchEmoteCard.hidden = !Object.prototype.hasOwnProperty.call(draft.channelSettings, currentChannelId)
+    twitchEmoteToggle.checked = pref.twitchEmote !== false
 
     manageOverlapWarning.hidden = pref.alwaysMain || enabled.length <= 1
     if (!manageOverlapWarning.hidden)
@@ -243,6 +245,15 @@ alwaysMainToggle.addEventListener("change", () => {
     updateSaveBar()
 })
 
+twitchEmoteToggle.addEventListener("change", () => {
+    const pref = { ...(draft.channelSettings[currentChannelId] || {}) }
+    if (twitchEmoteToggle.checked) delete pref.twitchEmote
+    else pref.twitchEmote = false
+    draft.channelSettings[currentChannelId] = pref
+    renderManageView()
+    updateSaveBar()
+})
+
 refreshMainNowBtn.addEventListener("click", async () => {
     refreshMainNowBtn.disabled = true
     const originalContent = clone(refreshMainNowBtn)
@@ -274,6 +285,8 @@ function applyActiveSetInfo(result) {
             channelId: result.channel.id,
             channelName: result.channel.name,
             channelAvatarUrl: result.channel.avatarUrl || "",
+            twitchId: result.channel.twitchId || "",
+            twitchLogin: result.channel.twitchLogin || "",
             enabled: !!pref.alwaysMain
         })
         sets = asChannelSet()
@@ -283,6 +296,8 @@ function applyActiveSetInfo(result) {
     draft.channelSettings[currentChannelId] = {
         ...pref,
         knownActiveSetId: result.activeSetId,
+        twitchId: result.channel.twitchId || pref.twitchId || "",
+        twitchLogin: result.channel.twitchLogin || pref.twitchLogin || "",
         mainRefreshedAt: Date.now()
     }
 }

@@ -1,3 +1,11 @@
+const SOURCE_TWITCH_ICON = "M11.64 5.93h1.43v4.28h-1.43m3.93-4.28H17v4.28h-1.43M7 2 3.43 5.57v12.86h4.28V22l3.58-3.57h2.85L20.57 12V2m-1.43 9.29-2.85 2.85h-2.86l-2.5 2.5v-2.5H7.71V3.43h11.43Z"
+const SOURCE_SEVEN_ICON = [
+    "m20.7465 5.48825 1.2334-2.1508.6661-1.1372L21.4125.04944V0h-6.5866l2.4669 4.3016.6908 1.18665h2.7629Z",
+    "m7.15395 19.9258 7.40065-12.9048.9127-1.5822-2.4669-4.3016L12.3097.02476H1.8995L.66606 2.17556 0 3.31276l1.23344 2.1508v.04945H9.12745L2.96025 16.267l-.8634 1.5328 1.23344 2.1508V20h3.82366",
+    "M17.4655 19.9257h3.7743l4.9338-8.6032.8634-1.4833-1.2334-2.1508v-.04941h-3.799l-2.4669 4.30161-.1727.3214-2.4669-4.30162-.1726-.32139-2.4669 4.30161-.6907 1.1866 3.7003 6.4524.1973.3461Z"
+]
+const SOURCE_OVERLAY_ICON = "m10.05 110.42 112 64a12 12 0 0 0 11.9 0l112-64a12 12 0 0 0 0-20.84l-112-64a12 12 0 0 0-11.9 0l-112 64a12 12 0 0 0 0 20.84ZM128 49.82 215.81 100 128 150.18 40.19 100Zm122.42 92.23A12 12 0 0 1 246 158.42l-112 64a12 12 0 0 1-11.9 0l-112-64A12 12 0 1 1 22 137.58l106 60.6 106-60.6a12 12 0 0 1 16.42 4.47Z"
+
 async function loadBrowserSetPreview(set) {
     const key = previewCacheKey(set.channelId, set.setId)
     if (browserPreviewBySet.has(key) || browserPreviewLoading.has(key)) return
@@ -28,6 +36,34 @@ async function loadBrowserSetPreview(set) {
             renderLoadedEmotes()
     }
 }
+
+function emoteProvider(emote) {
+    return emote && emote.provider === "twitch" ? "Twitch" : "7TV"
+}
+
+function makeSourceSvg(viewBox, paths, className, title) {
+    const icon = document.createElement("span")
+    icon.className = className
+    icon.title = title
+    icon.setAttribute("aria-label", title)
+    icon.setAttribute("role", "img")
+    const svg = document.createElementNS(SVG_NS, "svg")
+    svg.setAttribute("viewBox", viewBox)
+    svg.setAttribute("fill", "currentColor")
+    svg.setAttribute("aria-hidden", "true")
+    for (const d of Array.isArray(paths) ? paths : [paths]) {
+        const path = document.createElementNS(SVG_NS, "path")
+        path.setAttribute("d", d)
+        svg.appendChild(path)
+    }
+    icon.appendChild(svg)
+    return icon
+}
+
+const makeProviderIcon = emote => emoteProvider(emote) === "Twitch"
+    ? makeSourceSvg("0 0 24 24", SOURCE_TWITCH_ICON, "emote-source-provider twitch", "Twitch")
+    : makeSourceSvg("0 0 28 20", SOURCE_SEVEN_ICON, "emote-source-provider", "7TV")
+const makeOverlayIcon = () => makeSourceSvg("0 0 256 256", SOURCE_OVERLAY_ICON, "emote-source-overlay", "Overlaying")
 
 function updateBrowserSetPreview(set, previewing) {
     if (!set || !previewing) {
@@ -136,7 +172,7 @@ function renderLoadedEmotes() {
     browserVirtualList.mount(matches, ([, variants]) => makeEmoteGroup(variants), ([, variants]) =>
         variants.length === 1 ? 52 : 48 + variants.length * 51, {
         key: ([key]) => key,
-        version: ([, variants]) => variants.map(emote => `${emoteSourceId(emote)}:${emote.setId}:${emote.id}:${!!emote.previewOnly}`).join("|"),
+        version: ([, variants]) => variants.map(emote => `${emoteSourceId(emote)}:${emote.setId}:${emote.id}:${emote.provider}:${!!emote.zeroWidth}:${!!emote.previewOnly}`).join("|"),
         patch: (node, [, variants]) => syncEmoteGroupState(node, variants)
     })
 }
@@ -144,7 +180,7 @@ function renderLoadedEmotes() {
 function sortEmoteVariants(sourceVariants) {
     return sourceVariants.slice().sort((left, right) =>
         (right.priority || 0) - (left.priority || 0)
-            || String(left.channelName || "").localeCompare(String(right.channelName || ""))
+        || String(left.channelName || "").localeCompare(String(right.channelName || ""))
     )
 }
 
@@ -204,6 +240,8 @@ function makeEmoteSourceRow(emote, groupVariants, showName, tagName = "div") {
     row._emote = emote
     row._groupVariants = groupVariants
 
+    const media = document.createElement("span")
+    media.className = "emote-source-media"
     const img = document.createElement("img")
     img.className = "emote-source-thumb"
     img.referrerPolicy = "no-referrer"
@@ -211,7 +249,10 @@ function makeEmoteSourceRow(emote, groupVariants, showName, tagName = "div") {
     img.alt = showName ? emote.name : ""
     img.title = `${emote.name} (${emote.channelName || "Global 7TV"})`
     img.loading = "lazy"
-    row.appendChild(img)
+    media.appendChild(img)
+    media.appendChild(makeProviderIcon(emote))
+    if (emote.zeroWidth) media.appendChild(makeOverlayIcon())
+    row.appendChild(media)
 
     const copy = document.createElement("div")
     copy.className = "emote-source-copy"
@@ -220,9 +261,10 @@ function makeEmoteSourceRow(emote, groupVariants, showName, tagName = "div") {
     primary.title = primary.textContent
     copy.appendChild(primary)
     const secondary = document.createElement("span")
+    const provider = emoteProvider(emote)
     secondary.textContent = showName
-        ? `${emote.channelName || "Global 7TV"} · ${emote.setName || "Unknown set"}`
-        : emote.setName || "Unknown set"
+        ? `${emote.channelName || "Global 7TV"} · ${emote.setName || "Unknown set"} · ${provider}${emote.zeroWidth ? " · Overlaying" : ""}`
+        : `${emote.setName || "Unknown set"} · ${provider}${emote.zeroWidth ? " · Overlaying" : ""}`
     secondary.title = secondary.textContent
     copy.appendChild(secondary)
     row.appendChild(copy)

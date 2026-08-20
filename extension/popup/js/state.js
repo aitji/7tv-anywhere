@@ -45,6 +45,8 @@ const hardReloadChannelBtn = $("hard-reload-channel")
 const alwaysMainToggle = $("always-main-toggle")
 const alwaysMainActive = $("always-main-active")
 const refreshMainNowBtn = $("refresh-main-now")
+const twitchEmoteCard = $("twitch-emote-card")
+const twitchEmoteToggle = $("twitch-emote-toggle")
 const manageOverlapWarning = $("manage-overlap-warning")
 const manageSetListEl = $("manage-set-list")
 

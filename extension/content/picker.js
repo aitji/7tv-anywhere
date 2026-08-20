@@ -12,6 +12,14 @@
     const VIRTUAL_SCROLL_REFRESH_MS = 160
     const DRAG_THRESHOLD = 5
     const TOUCH_DRAG_DELAY = 280
+    const SVG_NS = "http://www.w3.org/2000/svg"
+    const TWITCH_ICON = "M11.64 5.93h1.43v4.28h-1.43m3.93-4.28H17v4.28h-1.43M7 2 3.43 5.57v12.86h4.28V22l3.58-3.57h2.85L20.57 12V2m-1.43 9.29-2.85 2.85h-2.86l-2.5 2.5v-2.5H7.71V3.43h11.43Z"
+    const SEVEN_ICON = [
+        "m20.7465 5.48825 1.2334-2.1508.6661-1.1372L21.4125.04944V0h-6.5866l2.4669 4.3016.6908 1.18665h2.7629Z",
+        "m7.15395 19.9258 7.40065-12.9048.9127-1.5822-2.4669-4.3016L12.3097.02476H1.8995L.66606 2.17556 0 3.31276l1.23344 2.1508v.04945H9.12745L2.96025 16.267l-.8634 1.5328 1.23344 2.1508V20h3.82366",
+        "M17.4655 19.9257h3.7743l4.9338-8.6032.8634-1.4833-1.2334-2.1508v-.04941h-3.799l-2.4669 4.30161-.1727.3214-2.4669-4.30162-.1726-.32139-2.4669 4.30161-.6907 1.1866 3.7003 6.4524.1973.3461Z"
+    ]
+    const OVERLAY_ICON = "m10.05 110.42 112 64a12 12 0 0 0 11.9 0l112-64a12 12 0 0 0 0-20.84l-112-64a12 12 0 0 0-11.9 0l-112 64a12 12 0 0 0 0 20.84ZM128 49.82 215.81 100 128 150.18 40.19 100Zm122.42 92.23A12 12 0 0 1 246 158.42l-112 64a12 12 0 0 1-11.9 0l-112-64A12 12 0 1 1 22 137.58l106 60.6 106-60.6a12 12 0 0 1 16.42 4.47Z"
     let active = false
     let pickerEnabled = true
     let layout = "tabs"
@@ -23,7 +31,7 @@
     let panel = null
     let nav = null
     let search = null
-    let overlaySort = null
+    let sortSelect = null
     let closeButton = null
     let content = null
     let status = null
@@ -36,7 +44,7 @@
     let loadToken = 0
     let siteKey = ""
     let pickerTriggerPositions = {}
-    let overlayFirst = false
+    let sortMode = "default"
     let triggerOffset = { x: 0, y: 0 }
     let triggerDrag = null
     let triggerLongPress = null
@@ -65,7 +73,7 @@
         const [state, site] = await Promise.all([
             ext.storage.local.get([
                 "enabled", "siteAccessDefault", "enabledSites", "disabledSites", "enabledUnsupportedSites", "pickerEnabled", "pickerLayout",
-                "pickerTriggerPositions", "pickerOverlayFirst"
+                "pickerTriggerPositions", "pickerSort", "pickerOverlayFirst"
             ]),
             shared.getTopSite ? shared.getTopSite() : Promise.resolve({ hostname: location.hostname, url: location.href })
         ])
@@ -82,7 +90,7 @@
         triggerOffset = storedOffset && Number.isFinite(storedOffset.x) && Number.isFinite(storedOffset.y)
             ? { x: storedOffset.x, y: storedOffset.y }
             : { x: 0, y: 0 }
-        overlayFirst = state.pickerOverlayFirst === true
+        sortMode = cleanPickerSort(state.pickerSort, state.pickerOverlayFirst)
         const permitted = state.siteAccessDefault === true
             ? !(state.disabledSites || []).includes(site.hostname)
             : (state.enabledSites || []).includes(site.hostname)
@@ -92,7 +100,7 @@
         if (!active) unload()
         else if (target) showTrigger()
         applyLayout()
-        syncOverlaySort()
+        syncSort()
     }
 
     function storageChanged(changes, area) {
@@ -126,11 +134,14 @@
                 ? { x: storedOffset.x, y: storedOffset.y } : { x: 0, y: 0 }
             position()
         }
-        if (changes.pickerOverlayFirst) {
-            const nextOverlayFirst = changes.pickerOverlayFirst.newValue === true
-            const changed = nextOverlayFirst !== overlayFirst
-            overlayFirst = nextOverlayFirst
-            syncOverlaySort()
+        if (changes.pickerSort || changes.pickerOverlayFirst) {
+            const nextSort = cleanPickerSort(
+                changes.pickerSort ? changes.pickerSort.newValue : sortMode,
+                changes.pickerOverlayFirst && changes.pickerOverlayFirst.newValue
+            )
+            const changed = nextSort !== sortMode
+            sortMode = nextSort
+            syncSort()
             if (open && changed) render(true)
         }
         if (["enabled", "siteAccessDefault", "enabledSites", "disabledSites", "enabledUnsupportedSites", "pickerEnabled", "pickerLayout", "siteCfg"]
@@ -209,6 +220,8 @@
         root = host.attachShadow({ mode: "open" })
         const style = document.createElement("style")
         style.textContent = styleText()
+        const providerStyle = document.createElement("style")
+        providerStyle.textContent = providerStyleText()
         trigger = document.createElement("button")
         trigger.className = "trigger"
         trigger.type = "button"
@@ -241,23 +254,25 @@
         search.setAttribute("aria-label", "Search emotes or channels")
         search.autocomplete = "off"
         search.addEventListener("input", () => render(false))
-        overlaySort = document.createElement("button")
-        overlaySort.className = "panel-tool overlay-sort"
-        overlaySort.type = "button"
-        overlaySort.title = "Show overlay emotes first"
-        overlaySort.setAttribute("aria-label", "Show overlay emotes first")
-        const overlaySortIcon = createLayersIcon()
-        overlaySortIcon.setAttribute("aria-hidden", "true")
-        const overlaySortText = document.createElement("span")
-        overlaySortText.className = "overlay-sort-text"
-        overlaySortText.textContent = "Overlay first"
-        overlaySort.append(overlaySortIcon, overlaySortText)
-        overlaySort.addEventListener("click", async () => {
-            overlayFirst = !overlayFirst
-            syncOverlaySort()
+        sortSelect = document.createElement("select")
+        sortSelect.className = "panel-sort"
+        sortSelect.title = "Emote order"
+        sortSelect.setAttribute("aria-label", "Emote order")
+        for (const [value, label] of [
+            ["default", "Channel order"],
+            ["twitch", "Twitch emotes first"],
+            ["7tv", "7TV emotes first"],
+            ["overlay", "7TV overlays first"]
+        ]) {
+            const option = document.createElement("option")
+            option.value = value
+            option.textContent = label
+            sortSelect.appendChild(option)
+        }
+        sortSelect.addEventListener("change", async () => {
+            sortMode = cleanPickerSort(sortSelect.value)
             if (open) render(true)
-            search.focus()
-            await ext.storage.local.set({ pickerOverlayFirst: overlayFirst })
+            await ext.storage.local.set({ pickerSort: sortMode })
         })
         closeButton = document.createElement("button")
         closeButton.className = "panel-tool close"
@@ -269,7 +284,7 @@
             closePanel()
             target?.focus()
         })
-        searchWrap.append(search, overlaySort, closeButton)
+        searchWrap.append(search, sortSelect, closeButton)
         nav = document.createElement("nav")
         nav.className = "nav"
         content = document.createElement("div")
@@ -282,7 +297,7 @@
         navTooltip.className = "nav-tooltip"
         navTooltip.hidden = true
         panel.append(searchWrap, nav, content, status, navTooltip)
-        root.append(style, trigger, moveHint, panel)
+        root.append(style, providerStyle, trigger, moveHint, panel)
         document.documentElement.appendChild(host)
         if (typeof ResizeObserver === "function") {
             virtualResizeObserver = new ResizeObserver(() => {
@@ -293,12 +308,16 @@
             virtualResizeObserver.observe(content)
         }
         applyLayout()
-        syncOverlaySort()
+        syncSort()
     }
 
     function styleText() {
         const extra = `.trigger{touch-action:none;user-select:none}.trigger.dragging{cursor:grabbing;border-color:#8e93a6}.move-hint{position:fixed;z-index:10;padding:5px 7px;color:#c8cbd6;background:#272b37;border:1px solid #4a5060;border-radius:6px;box-shadow:0 4px 14px rgba(0,0,0,.42);font:500 10px/1.2 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;pointer-events:none}.move-hint[hidden]{display:none}.nav,.content{scrollbar-color:#393445 #151822;scrollbar-width:thin}.content{overflow-anchor:none;scroll-behavior:auto!important}.nav::-webkit-scrollbar,.content::-webkit-scrollbar{width:9px;height:9px}.nav::-webkit-scrollbar-track,.content::-webkit-scrollbar-track{background:#151822}.nav::-webkit-scrollbar-thumb,.content::-webkit-scrollbar-thumb{background:#393445;border:2px solid #151822;border-radius:999px}.nav::-webkit-scrollbar-thumb:hover,.content::-webkit-scrollbar-thumb:hover{background:#524665}.virtual-grid{position:relative;min-width:0}.virtual-row{position:absolute;right:0;left:0;display:grid;gap:5px;height:68px}.virtual-row .emote{box-sizing:border-box;height:68px;min-height:0}`
         return extra + `:host{all:initial}.trigger{position:fixed;display:none;width:28px;height:28px;padding:0;border:1px solid #474b59;border-radius:7px;background:#181b24;color:#e8e9ef;box-shadow:0 4px 14px rgba(0,0,0,.38);cursor:pointer}.trigger:hover,.trigger:focus-visible,.trigger[aria-expanded="true"]{border-color:#9d72f8;background:#242033;outline:none}.glass{position:absolute;left:8px;top:7px;width:8px;height:8px;border:2px solid currentColor;border-radius:50%}.glass:after{content:"";position:absolute;width:6px;height:2px;right:-5px;bottom:-3px;background:currentColor;transform:rotate(45deg);border-radius:2px}.panel{position:fixed;box-sizing:border-box;width:min(430px,calc(100vw - 8px));height:min(470px,calc(100vh - 12px));overflow:hidden;color:#e6e8ef;background:#0c0e14;border:1px solid #343846;border-radius:12px;box-shadow:0 14px 38px rgba(0,0,0,.58);font:12px/1.35 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.panel[hidden],.panel.sidebar[hidden]{display:none}.search{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:6px;padding:9px;background:#151822;border-bottom:1px solid #2a2e3b}.search input{box-sizing:border-box;width:100%;min-width:0;padding:8px 10px;color:#e6e8ef;background:#1c202c;border:1px solid #343846;border-radius:7px;font:inherit;outline:none}.search input:focus{border-color:#8b5cf6;box-shadow:0 0 0 3px rgba(139,92,246,.16)}.panel-tool{display:flex;align-items:center;justify-content:center;gap:5px;min-width:32px;padding:0 8px;color:#a6aabb;background:#1c202c;border:1px solid #343846;border-radius:7px;font:600 10px/1 inherit;cursor:pointer}.panel-tool:hover,.panel-tool:focus-visible{color:#fff;border-color:#8b5cf6;outline:none}.panel-tool.close{padding:0;width:32px;font-size:20px;font-weight:400}.overlay-sort[aria-pressed="true"]{color:#ffc1df;background:#30202c;border-color:#b75f8e}.layers-icon{flex:none;width:15px;height:15px}.nav{display:flex;gap:4px;min-width:0;padding:6px;overflow:auto;background:#151822;border-bottom:1px solid #2a2e3b;scrollbar-width:thin}.nav button{box-sizing:border-box;display:flex;flex:none;align-items:center;gap:6px;max-width:140px;padding:5px 8px;overflow:hidden;color:#a6aabb;background:#1c202c;border:1px solid #2a2e3b;border-radius:7px;font:600 11px/1.2 inherit;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}.nav button:hover,.nav button:focus-visible{color:#fff;border-color:#8b5cf6;outline:none}.nav-icon{display:grid;flex:none;place-items:center;width:20px;height:20px;overflow:hidden;color:#d7d9e3;background:#292d3a;border-radius:50%;font:700 9px/1 inherit}.nav-icon img{display:block;width:100%;height:100%;object-fit:cover}.nav-label{overflow:hidden;text-overflow:ellipsis}.content{box-sizing:border-box;min-width:0;height:calc(100% - 100px);padding:8px;overflow:auto;scroll-behavior:smooth}.section{margin:0 0 10px;scroll-margin-top:4px}.section h3{position:sticky;top:-8px;z-index:1;margin:0 0 5px;padding:6px 2px 4px;color:#b8bbca;background:#0c0e14;font-size:11px;letter-spacing:.04em;text-transform:uppercase}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(62px,1fr));gap:5px}.emote{position:relative;display:grid;place-items:center;min-height:68px;padding:6px 4px 18px;overflow:hidden;color:#e6e8ef;background:#151822;border:1px solid transparent;border-radius:8px;font:10px/1.1 inherit;cursor:pointer}.emote.overlay{background:linear-gradient(150deg,rgba(252,141,199,.1),transparent 50%),#151822;border-color:rgba(252,141,199,.42)}.emote:hover,.emote:focus-visible{background-color:#211d30;border-color:#8b5cf6;outline:none}.emote img{position:relative;display:block;width:34px;height:34px;object-fit:contain;transition:opacity .12s ease}.emote.is-loading img{opacity:0}.emote.is-loading:before{content:"";position:absolute;top:7px;left:50%;width:34px;height:34px;border-radius:5px;background:linear-gradient(105deg,#202430 28%,#323746 42%,#202430 58%);background-size:220% 100%;transform:translateX(-50%);animation:picker-loading 1.15s ease-in-out infinite;animation-delay:var(--loading-delay,0ms)}@keyframes picker-loading{0%{background-position:100% 0}100%{background-position:-100% 0}}.emote-name{position:absolute;right:3px;bottom:4px;left:3px;overflow:hidden;text-align:center;text-overflow:ellipsis;white-space:nowrap}.overlay-badge{position:absolute;z-index:2;top:3px;left:4px;display:grid;place-items:center;width:17px;height:17px;color:#fc8dc7;background:rgba(21,24,34,.86);border-radius:4px}.overlay-badge .layers-icon{width:14px;height:14px}.favorite{position:absolute;z-index:2;top:2px;right:3px;padding:2px;color:#777d91;background:transparent;border:0;font-size:15px;line-height:1;cursor:pointer}.favorite.on{color:#f0b429}.more{width:100%;margin-top:7px;padding:7px;color:#c8cbd6;background:#1c202c;border:1px solid #343846;border-radius:7px;font:600 11px inherit;cursor:pointer}.status{padding:0 9px 7px;color:#8e93a6}.nav-tooltip{position:absolute;z-index:8;max-width:230px;padding:6px 8px;color:#f1f2f6;background:#272b37;border:1px solid #4a5060;border-radius:6px;box-shadow:0 5px 16px rgba(0,0,0,.45);font:500 11px/1.3 inherit;pointer-events:none}.panel.sidebar{display:grid;grid-template-columns:48px minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto}.panel.sidebar .search{grid-column:1/3;grid-row:1}.panel.sidebar .nav{grid-column:1;grid-row:2;align-content:flex-start;flex-direction:column;min-width:0;padding:5px;background:#11141c;border-right:1px solid #2a2e3b;border-bottom:0}.panel.sidebar .nav button{justify-content:center;width:37px;height:37px;padding:4px}.panel.sidebar .nav-label{display:none}.panel.sidebar .content{grid-column:2;grid-row:2;min-width:0;height:auto}.panel.sidebar .status{grid-column:1/3;grid-row:3}.panel.sidebar .empty{padding:7px 5px}.panel.sidebar .section:has(.empty){margin-bottom:6px}.empty{padding:14px 8px;text-align:center;color:#8e93a6}@media(max-width:390px){.overlay-sort-text{display:none}.grid{grid-template-columns:repeat(auto-fill,minmax(56px,1fr))}.panel{height:min(430px,calc(100vh - 8px))}}@media(prefers-reduced-motion:reduce){.emote.is-loading:before{animation:none}.emote img{transition:none}}`
+    }
+
+    function providerStyleText() {
+        return `.panel-sort{box-sizing:border-box;min-width:112px;max-width:134px;padding:0 8px;color:#a6aabb;background:#1c202c;border:1px solid #343846;border-radius:7px;font:600 10px/1 inherit;cursor:pointer;outline:none}.panel-sort:hover,.panel-sort:focus-visible{color:#fff;border-color:#8b5cf6}.emote .provider-icon,.emote .overlay-icon{position:absolute;z-index:2;top:3px;display:grid;box-sizing:border-box;place-items:center;height:17px;color:#f4f0ff;background:rgba(21,24,34,.9);border:1px solid rgba(12,14,20,.88);border-radius:5px;box-shadow:0 1px 3px rgba(0,0,0,.35)}.emote .provider-icon{left:4px;width:20px}.emote .provider-icon.twitch{color:#9146ff}.emote .overlay-icon{left:27px;width:17px;color:#fc8dc7}.provider-icon svg{width:17px;height:13px}.provider-icon.twitch svg,.overlay-icon svg{width:14px;height:14px}@media(max-width:390px){.panel-sort{min-width:104px;max-width:118px}}`
     }
 
     function applyLayout() {
@@ -310,22 +329,42 @@
         }
     }
 
-    function createLayersIcon() {
-        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg")
-        svg.classList.add("layers-icon")
-        svg.setAttribute("viewBox", "0 0 256 256")
-        svg.setAttribute("fill", "currentColor")
-        const path = document.createElementNS("http://www.w3.org/2000/svg", "path")
-        path.setAttribute("d", "M10.05 110.42l112 64a12 12 0 0 0 11.9 0l112-64a12 12 0 0 0 0-20.84l-112-64a12 12 0 0 0-11.9 0l-112 64a12 12 0 0 0 0 20.84ZM128 49.82 215.81 100 128 150.18 40.19 100Zm122.42 92.23A12 12 0 0 1 246 158.42l-112 64a12 12 0 0 1-11.9 0l-112-64A12 12 0 1 1 22 137.58l106 60.6 106-60.6a12 12 0 0 1 16.42 4.47Z")
-        svg.appendChild(path)
-        return svg
+    function cleanPickerSort(value, legacyOverlay = false) {
+        return ["default", "twitch", "7tv", "overlay"].includes(value)
+            ? value
+            : legacyOverlay ? "overlay" : "default"
     }
 
-    function syncOverlaySort() {
-        if (!overlaySort) return
-        overlaySort.setAttribute("aria-pressed", String(overlayFirst))
-        overlaySort.title = overlayFirst ? "Use the normal emote order" : "Show overlay emotes first"
-        overlaySort.setAttribute("aria-label", overlaySort.title)
+    function emoteProvider(emote) {
+        return emote && emote.provider === "twitch" ? "Twitch" : "7TV"
+    }
+
+    function createIcon(viewBox, paths, className, title) {
+        const icon = document.createElement("span")
+        icon.className = className
+        icon.title = title
+        icon.setAttribute("aria-label", title)
+        icon.setAttribute("role", "img")
+        const svg = document.createElementNS(SVG_NS, "svg")
+        svg.setAttribute("viewBox", viewBox)
+        svg.setAttribute("fill", "currentColor")
+        svg.setAttribute("aria-hidden", "true")
+        for (const d of Array.isArray(paths) ? paths : [paths]) {
+            const path = document.createElementNS(SVG_NS, "path")
+            path.setAttribute("d", d)
+            svg.appendChild(path)
+        }
+        icon.appendChild(svg)
+        return icon
+    }
+
+    const createProviderIcon = emote => emoteProvider(emote) === "Twitch"
+        ? createIcon("0 0 24 24", TWITCH_ICON, "provider-icon twitch", "Twitch")
+        : createIcon("0 0 28 20", SEVEN_ICON, "provider-icon", "7TV")
+    const createOverlayIcon = () => createIcon("0 0 256 256", OVERLAY_ICON, "overlay-icon", "Overlaying")
+
+    function syncSort() {
+        if (sortSelect) sortSelect.value = sortMode
     }
 
     function targetHasFocus() {
@@ -516,15 +555,15 @@
         try {
             const [data, state] = await Promise.all([
                 ext.runtime.sendMessage({ type: "GET_PICKER_DATA" }),
-                ext.storage.local.get(["pickerFavorites", "pickerUsage", "pickerOverlayFirst"])
+                ext.storage.local.get(["pickerFavorites", "pickerUsage", "pickerSort", "pickerOverlayFirst"])
             ])
             if (!open || token !== loadToken) return
             emotes = Array.isArray(data && data.emotes) ? data.emotes : []
             channels = Array.isArray(data && data.channels) ? data.channels : []
             favorites = new Set(Array.isArray(state.pickerFavorites) ? state.pickerFavorites : [])
             usage = state.pickerUsage && typeof state.pickerUsage === "object" ? state.pickerUsage : {}
-            overlayFirst = state.pickerOverlayFirst === true
-            syncOverlaySort()
+            sortMode = cleanPickerSort(state.pickerSort, state.pickerOverlayFirst)
+            syncSort()
             render(false)
         } catch {
             status.textContent = "Emotes could not be loaded"
@@ -555,8 +594,15 @@
     }
 
     function orderEmotes(items) {
-        if (!overlayFirst) return items
-        return [...items].sort((left, right) => Number(Boolean(right.zeroWidth)) - Number(Boolean(left.zeroWidth)))
+        if (sortMode === "default") return items
+        return [...items].sort((left, right) => {
+            if (sortMode === "overlay")
+                return Number(Boolean(right.zeroWidth)) - Number(Boolean(left.zeroWidth))
+            const first = sortMode === "twitch" ? "twitch" : "7tv"
+            const leftProvider = emoteProvider(left) === "Twitch" ? "twitch" : "7tv"
+            const rightProvider = emoteProvider(right) === "Twitch" ? "twitch" : "7tv"
+            return Number(rightProvider === first) - Number(leftProvider === first)
+        })
     }
 
     function groupData() {
@@ -870,8 +916,10 @@
         button.tabIndex = 0
         button.setAttribute("role", "button")
         button.dataset.emoteKey = emoteKey(emote)
-        button.title = `${emote.name} · ${emote.channelName || "Global 7TV"}${emote.zeroWidth ? " · Overlay emote" : ""}`
+        const provider = emoteProvider(emote)
+        button.title = `${emote.name} · ${emote.channelName || "Global 7TV"} · ${provider}${emote.zeroWidth ? " · Overlaying" : ""}`
         const image = document.createElement("img")
+        image.className = "emote-image"
         image.referrerPolicy = "no-referrer"
         image.loading = "lazy"
         image.decoding = "async"
@@ -886,15 +934,7 @@
         const name = document.createElement("span")
         name.className = "emote-name"
         name.textContent = emote.name
-        const overlayBadge = emote.zeroWidth ? document.createElement("span") : null
-        if (overlayBadge) {
-            overlayBadge.className = "overlay-badge"
-            overlayBadge.title = "Overlay emote"
-            overlayBadge.setAttribute("aria-label", "Overlay emote")
-            const layers = createLayersIcon()
-            layers.setAttribute("aria-hidden", "true")
-            overlayBadge.appendChild(layers)
-        }
+        const providerIcon = createProviderIcon(emote)
         const favorite = document.createElement("button")
         favorite.className = `favorite${favorites.has(emoteKey(emote)) ? " on" : ""}`
         favorite.type = "button"
@@ -925,7 +965,8 @@
             chooseEmote(emote, event.shiftKey)
         })
         button.append(image, name)
-        if (overlayBadge) button.appendChild(overlayBadge)
+        button.appendChild(providerIcon)
+        if (emote.zeroWidth) button.appendChild(createOverlayIcon())
         button.appendChild(favorite)
         return button
     }
@@ -1027,6 +1068,6 @@
         discardVirtualRows()
         virtualSections = []
         host?.remove()
-        host = root = trigger = moveHint = panel = nav = search = overlaySort = closeButton = content = status = navTooltip = null
+        host = root = trigger = moveHint = panel = nav = search = sortSelect = closeButton = content = status = navTooltip = null
     }
 })()

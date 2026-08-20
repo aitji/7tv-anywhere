@@ -256,7 +256,7 @@ function renderPrivacyOnboarding(container) {
     const facts = onboardingElement("div", "onboarding-facts")
     for (const [icon, title, detail] of [
         ["⌂", "Page text stays local", "Messages and editor text are not uploaded."],
-        ["7", "Images come from 7TV", "Image requests omit the referring page URL."],
+        ["7", "Images come from emote CDNs", "7TV and Twitch image requests omit the referring page URL."],
         ["✓", "No analytics", "7TV Anywhere has no advertising or tracking."]
     ]) {
         const fact = onboardingElement("div", "onboarding-fact")
@@ -279,12 +279,12 @@ function renderOnboarding(resetScroll = false) {
     onboardingStepEl.textContent = `Step ${onboardingIndex + 1} of ${ONBOARDING_TOTAL}`
     onboardingProgressEl.style.setProperty("--onboarding-progress", `${((onboardingIndex + 1) / ONBOARDING_TOTAL) * 100}%`)
     onboardingContentEl.replaceChildren()
-    ;[
-        renderAccessOnboarding,
-        renderPickerOnboarding,
-        renderAppearanceOnboarding,
-        renderPrivacyOnboarding
-    ][onboardingIndex](onboardingContentEl)
+        ;[
+            renderAccessOnboarding,
+            renderPickerOnboarding,
+            renderAppearanceOnboarding,
+            renderPrivacyOnboarding
+        ][onboardingIndex](onboardingContentEl)
     onboardingBackBtn.disabled = onboardingIndex === 0
     const accessChosen = onboardingPrefs.siteAccessChoice === "all" || onboardingPrefs.siteAccessChoice === "per-site"
     onboardingNextBtn.disabled = onboardingIndex === 0 && !accessChosen

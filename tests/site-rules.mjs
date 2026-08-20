@@ -177,7 +177,7 @@ Object.assign(storageData, {
     emoteSetSize: 2,
     emoteSize: 2,
     emoteSetPartial: false,
-    emoteSetKey: JSON.stringify([4, "global"]),
+    emoteSetKey: JSON.stringify([6, "global", "twitch"]),
     customSets: [],
     excludedEmote: [],
     caseSensitive: false,

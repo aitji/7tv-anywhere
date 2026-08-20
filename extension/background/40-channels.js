@@ -24,6 +24,7 @@ async function refreshMain(customSet, channelSetting) {
         let updated = false
         let channelName = user.display_name || user.username || channelId
         const channelAvatarUrl = normalizeRefreshedAvatarUrl(user.avatar_url || user.avatarUrl)
+        const twitch = twitchIdentity(user)
         customSet = customSet.map(set => {
             if (set.channelId !== channelId) return set
             channelName = set.channelName || channelName
@@ -36,12 +37,16 @@ async function refreshMain(customSet, channelSetting) {
                     count: info.count,
                     preview: info.preview,
                     channelAvatarUrl: channelAvatarUrl || set.channelAvatarUrl || "",
+                    twitchId: twitch.id || set.twitchId || "",
+                    twitchLogin: twitch.login || set.twitchLogin || "",
                     enabled: true
                 }
             }
             return {
                 ...set,
                 channelAvatarUrl: channelAvatarUrl || set.channelAvatarUrl || "",
+                twitchId: twitch.id || set.twitchId || "",
+                twitchLogin: twitch.login || set.twitchLogin || "",
                 enabled: false
             }
         })
@@ -53,11 +58,15 @@ async function refreshMain(customSet, channelSetting) {
             channelId,
             channelName,
             channelAvatarUrl,
+            twitchId: twitch.id,
+            twitchLogin: twitch.login,
             enabled: true
         })
         channelSetting[channelId] = {
             ...pref,
             knownActiveSetId: info.id,
+            twitchId: twitch.id || pref.twitchId || "",
+            twitchLogin: twitch.login || pref.twitchLogin || "",
             mainRefreshedAt: now
         }
         changed = true

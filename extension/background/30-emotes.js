@@ -37,7 +37,7 @@ async function getEmote() {
         customSets: customSet = []
     } = state
     const size = emoteSetSize === clamp(emoteSize)
-    const key = cacheKey(customSet)
+    const key = cacheKey(customSet, state.channelSettings)
     const keyOk = emoteSetKey === key
     const ttl = emoteSetPartial ? PARTIAL_RETRY_MS : CACHE_TTL_MS
     const fresh = Array.isArray(emoteSet) && emoteSet.length && getEmoteAt
@@ -62,9 +62,10 @@ async function getEmote() {
     }
 }
 
-function cacheKey(customSet) {
+function cacheKey(customSet, channelSetting = {}) {
     const id = customSet.filter(s => s.enabled !== false).map(s => s.id)
-    return JSON.stringify([EMOTE_CACHE_VERSION, "global", ...id])
+    const twitch = twitchChannels(customSet, channelSetting).map(channel => channel.ref)
+    return JSON.stringify([EMOTE_CACHE_VERSION, "global", ...id, "twitch", ...twitch])
 }
 
 let emoteFly = null
@@ -120,7 +121,9 @@ async function getSetEmotes(id) {
         .map(emote => ({
             name: emote.name,
             id: emote.id,
-            url: `https:${emote.data.host.url}/${size}x.webp`
+            url: `https:${emote.data.host.url}/${size}x.webp`,
+            provider: "7tv",
+            zeroWidth: isZeroWidthEmote(emote)
         }))
     const value = {
         setId: data.id || id,
@@ -130,6 +133,62 @@ async function getSetEmotes(id) {
     }
     setPreviewCache.set(id, { at: Date.now(), size, value })
     return value
+}
+
+function twitchChannels(customSet, channelSetting) {
+    const channel = new Map()
+    customSet.forEach((set, order) => {
+        const pref = channelSetting && channelSetting[set.channelId]
+        if (!pref || pref.twitchEmote === false) return
+        const ref = String(pref.twitchId || pref.twitchLogin || set.twitchId || set.twitchLogin || set.channelName || "").trim()
+        if (!/^\d+$/.test(ref) && !/^[A-Za-z0-9_]+$/.test(ref)) return
+        const previous = channel.get(set.channelId)
+        const value = {
+            channelId: set.channelId,
+            channelName: set.channelName,
+            channelAvatarUrl: set.channelAvatarUrl || "",
+            ref,
+            priority: order + 1
+        }
+        channel.set(set.channelId, previous ? { ...previous, ...value } : value)
+    })
+    return [...channel.values()]
+}
+
+function twitchEmoteUrl(emote, size) {
+    const url = Array.isArray(emote && emote.urls) ? emote.urls : []
+    const wanted = `${size}x`
+    return String((url.find(item => item && item.size === wanted)
+        || url.find(item => item && item.size === "4x")
+        || url.at(-1)
+        || {}).url || "").trim()
+}
+
+function normalizeTwitchEmote(emote, channel, size) {
+    if (!emote || Number(emote.provider) !== 0 || !emote.code) return null
+    const url = twitchEmoteUrl(emote, size)
+    if (!/^https:\/\/static-cdn\.jtvnw\.net\//i.test(url)) return null
+    const id = (url.match(/\/emoticons\/v2\/([^/]+)/) || [])[1] || `twitch:${emote.code}`
+    return {
+        name: emote.code,
+        id,
+        url,
+        channelId: channel.channelId,
+        channelName: channel.channelName,
+        channelAvatarUrl: channel.channelAvatarUrl,
+        setId: `twitch:${channel.ref}`,
+        setName: "Twitch",
+        provider: "twitch",
+        priority: channel.priority
+    }
+}
+
+async function getTwitchChannelEmotes(channel, size) {
+    const res = await fetchWithTimeout(`${TWITCH_EMOTE_API}/channel/${encodeURIComponent(channel.ref)}/emotes/twitch`)
+    if (!res.ok) throw new Error(`Twitch emotes for ${channel.channelName}: HTTP ${res.status}`)
+    const data = await res.json()
+    if (!Array.isArray(data)) throw new Error(`Twitch emotes for ${channel.channelName}: invalid response`)
+    return data.map(emote => normalizeTwitchEmote(emote, channel, size)).filter(Boolean)
 }
 
 async function loadEmote() {
@@ -145,13 +204,15 @@ async function loadEmote() {
     const enabledSet = customSet.filter(s => s.enabled !== false)
     const id = ["global", ...enabledSet.map(s => s.id)]
     const task = await settleLimited(id, EMOTE_FETCH_CONCURRENCY, setId => getSetData(setId))
+    const twitchSource = twitchChannels(customSet, channelSetting)
+    const twitchTask = await settleLimited(twitchSource, EMOTE_FETCH_CONCURRENCY, channel => getTwitchChannelEmotes(channel, size))
 
     const bySourceName = new Map()
     let anyOk = false
-    const fail = []
+    const setFail = []
     task.forEach((item, index) => {
         if (item.status !== "fulfilled") {
-            if (index > 0) fail.push(labelSet(enabledSet[index - 1]) || id[index])
+            if (index > 0) setFail.push(labelSet(enabledSet[index - 1]) || id[index])
             return
         }
 
@@ -179,10 +240,24 @@ async function loadEmote() {
                 channelAvatarUrl,
                 setId,
                 setName,
+                provider: "7tv",
                 priority: index
             }
             if (isZeroWidthEmote(emote)) entry.zeroWidth = true
             bySourceName.set(sourceKey, entry)
+        }
+    })
+
+    const twitchFail = []
+    twitchTask.forEach((item, index) => {
+        const source = twitchSource[index]
+        if (item.status !== "fulfilled") {
+            twitchFail.push(source.channelName || source.ref)
+            return
+        }
+        for (const entry of item.value) {
+            const sourceKey = `${entry.channelId}\0${entry.name}`
+            if (!bySourceName.has(sourceKey)) bySourceName.set(sourceKey, entry)
         }
     })
 
@@ -197,18 +272,19 @@ async function loadEmote() {
         .map(([channelId]) => (customSet.find(s => s.channelId === channelId) || {}).channelName || channelId)
 
     const warn = []
-    if (fail.length) warn.push(`Couldn't load ${fail.join(", ")}; the set may no longer be public...`)
+    if (setFail.length) warn.push(`Couldn't load ${setFail.join(", ")}; the set may no longer be public...`)
+    if (twitchFail.length) warn.push(`Couldn't load Twitch emotes for ${twitchFail.join(", ")}...`)
     if (overlap.length)
         warn.push(`Multiple sets are enabled for ${overlap.join(", ")}, so emotes with the same name may override each other...`)
     const warning = warn.length ? warn.join(" ") : null
 
-    const partial = fail.length > 0
+    const partial = setFail.length > 0 || twitchFail.length > 0
     const nextState = {
         emoteSet: emote,
         getEmoteAt: Date.now(),
         emoteSetSize: size,
         emoteSetPartial: partial,
-        emoteSetKey: cacheKey(customSet),
+        emoteSetKey: cacheKey(customSet, channelSetting),
         lastReWarn: warning
     }
     await ext.storage.local.set(nextState)

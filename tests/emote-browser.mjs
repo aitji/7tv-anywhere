@@ -168,10 +168,20 @@ assert.deepEqual(plain(api.getPreviewUi()), {
 
 const singleCard = api.makeEmoteGroup([loaded[2]])
 assert.equal(singleCard.tagName, "ARTICLE")
-assert.equal(singleCard.querySelectorAll("img").length, 1)
+assert.equal(singleCard.querySelectorAll(".emote-source-thumb").length, 1)
+assert.equal(singleCard.querySelectorAll(".emote-source-provider").length, 1)
 assert.equal(singleCard.querySelectorAll(".emote-source-list").length, 0)
 assert.equal(singleCard.querySelector("[data-source-status]").textContent, "Active")
-assert.equal(singleCard.querySelector("img").title, "OnlyVedal (vedal987)")
+assert.equal(singleCard.querySelector(".emote-source-thumb").title, "OnlyVedal (vedal987)")
+assert.equal(singleCard.querySelector(".emote-source-provider").title, "7TV")
+assert.equal(singleCard.querySelectorAll(".emote-source-provider svg").length, 1)
+
+const twitchCard = api.makeEmoteGroup([{ ...loaded[2], provider: "twitch", setName: "Twitch" }])
+assert.equal(twitchCard.querySelector(".emote-source-provider").title, "Twitch")
+assert.equal(twitchCard.querySelectorAll(".emote-source-provider.twitch").length, 1)
+const overlayCard = api.makeEmoteGroup([{ ...loaded[2], zeroWidth: true }])
+assert.equal(overlayCard.querySelector(".emote-source-provider").title, "7TV")
+assert.equal(overlayCard.querySelector(".emote-source-overlay").title, "Overlaying")
 
 assert.ok(api.browserEmoteSearchScore({ name: "Alert", channelName: "other" }, "a")
     < api.browserEmoteSearchScore({ name: "WideAlert", channelName: "other" }, "a"))
@@ -186,7 +196,9 @@ assert.deepEqual(
 api.setSearch("")
 
 const duplicateCard = api.makeEmoteGroup(loaded.slice(0, 2))
-assert.equal(duplicateCard.querySelectorAll("img").length, 2)
+assert.equal(duplicateCard.querySelectorAll(".emote-source-thumb").length, 2)
+assert.equal(duplicateCard.querySelectorAll(".emote-source-provider").length, 2)
+assert.equal(duplicateCard.querySelectorAll(".emote-source-overlay").length, 0)
 assert.equal(duplicateCard.querySelectorAll(".emote-source-row").length, 2)
 assert.equal(duplicateCard.querySelector("[data-group-action]").textContent, "Restore all")
 
@@ -281,15 +293,19 @@ async function testSetLoadPriority() {
             { id: "second", setName: "Second", channelId: "vedal", channelName: "vedal987", enabled: true },
             { id: "other", setName: "Other", channelId: "camila", channelName: "camila", enabled: true }
         ],
-        channelSettings: {},
+        channelSettings: {
+            vedal: { twitchId: "85498365" },
+            camila: { twitchEmote: false }
+        },
         emoteSize: 2
     }
     const setData = {
         global: [],
-        first: [{ id: "first-copy", name: "Same", data: { host: { url: "//cdn/first" } } }],
+        first: [{ id: "first-copy", name: "Same", data: { flags: 256, host: { url: "//cdn/first" } } }],
         second: [{ id: "second-copy", name: "Same", data: { host: { url: "//cdn/second" } } }],
         other: [{ id: "other-copy", name: "Same", data: { host: { url: "//cdn/other" } } }]
     }
+    const fetched = []
     const changeListeners = []
     const context = vm.createContext({
         console,
@@ -301,11 +317,26 @@ async function testSetLoadPriority() {
         EMOTE_FETCH_CONCURRENCY: 4,
         PARTIAL_RETRY_ALARM: "retry",
         SEVEN_TV_API: "https://7tv.test/v3",
+        TWITCH_EMOTE_API: "https://emotes.test/v1",
         clamp: value => Number(value) || 2,
         errorText: value => String(value),
         refreshMain: async sets => sets,
-        setEmoteLoadStatus: async () => {},
+        setEmoteLoadStatus: async () => { },
         fetchWithTimeout: async url => {
+            fetched.push(url)
+            if (url.includes("/channel/")) return {
+                ok: true,
+                async json() {
+                    return [{
+                        provider: 0,
+                        code: "vedalCheer",
+                        urls: [
+                            { size: "1x", url: "https://static-cdn.jtvnw.net/emoticons/v2/123/default/light/1.0" },
+                            { size: "2x", url: "https://static-cdn.jtvnw.net/emoticons/v2/123/default/light/2.0" }
+                        ]
+                    }]
+                }
+            }
             const id = url.split("/").at(-1)
             return {
                 ok: true,
@@ -320,8 +351,8 @@ async function testSetLoadPriority() {
                 },
                 onChanged: { addListener(listener) { changeListeners.push(listener) } }
             },
-            alarms: { create() {}, clear() {} },
-            tabs: { async query() { return [] }, async sendMessage() {} }
+            alarms: { create() { }, clear() { } },
+            tabs: { async query() { return [] }, async sendMessage() { } }
         }
     })
     vm.runInContext(await read("extension/background/30-emotes.js"), context, {
@@ -335,8 +366,17 @@ async function testSetLoadPriority() {
     assert.equal(vedal.id, "first-copy")
     assert.equal(vedal.setId, "first")
     assert.equal(vedal.priority, 1)
+    assert.equal(vedal.provider, "7tv")
+    assert.equal(vedal.zeroWidth, true)
     assert.equal(camila.id, "other-copy")
     assert.equal(camila.priority, 3)
+    const twitch = result.emotes.find(emote => emote.name === "vedalCheer")
+    assert.equal(twitch.id, "123")
+    assert.equal(twitch.url, "https://static-cdn.jtvnw.net/emoticons/v2/123/default/light/2.0")
+    assert.equal(twitch.setName, "Twitch")
+    assert.equal(twitch.provider, "twitch")
+    assert.equal(fetched.filter(url => url.includes("/channel/")).length, 1)
+    assert.match(fetched.find(url => url.includes("/channel/")), /85498365/)
 }
 
 async function testVirtualList() {
@@ -416,4 +456,4 @@ async function testVirtualList() {
 
 await testSetLoadPriority()
 await testVirtualList()
-console.log("verified functional emote browsing, 7TV set priority, scoped blocking, set preview/selection, and virtual-list lifecycle")
+console.log("verified emote browsing, 7TV priority, Twitch channel loading, scoped blocking, set preview/selection, and virtual-list lifecycle")

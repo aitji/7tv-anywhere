@@ -18,7 +18,7 @@
         }
     },
     "permissions": ["storage", "activeTab", "alarms", "scripting"],
-    "host_permissions": ["https://7tv.io/*", "https://decapi.me/*", "https://cdn.jsdelivr.net/*"],
+    "host_permissions": ["https://7tv.io/*", "https://decapi.me/*", "https://emotes.adamcy.pl/*", "https://cdn.jsdelivr.net/*"],
     "optional_host_permissions": ["<all_urls>"],
     "background": {
         "service_worker": "background.js"

@@ -3,6 +3,7 @@ const ONBOARDING_SESSION_KEY = "onboardingSession"
 const HUGGIES_URL = "https://cdn.7tv.app/emote/01HF2N16Q00000CPH0355B4WE1/2x.webp"
 const onboardingQuery = new URL(location.href).searchParams
 const onboardingPageMode = onboardingQuery.get("onboarding") === "1"
+const onboardingUrl = ext.runtime.getURL("popup/popup.html?onboarding=1")
 let onboardingPermissionSource = "onboarding"
 let onboardingPermissionResumeResult = null
 let onboardingIndex = 0
@@ -277,7 +278,7 @@ function renderOnboarding(resetScroll = false) {
     const titles = ["Website access", "In-page picker", "Emotes and hover", "Privacy and finish"]
     onboardingTitleEl.textContent = titles[onboardingIndex]
     onboardingStepEl.textContent = `Step ${onboardingIndex + 1} of ${ONBOARDING_TOTAL}`
-    onboardingProgressEl.style.setProperty("--onboarding-progress", `${((onboardingIndex + 1) / ONBOARDING_TOTAL) * 100}%`)
+    onboardingProgressEl.style.setProperty("--onboarding-progress", `${((onboardingIndex + 1) / ONBOARDING_TOTAL) * 100}%`), onboardingOverlay.querySelectorAll(".onboarding-dots i").forEach((dot, i) => dot.classList.toggle("is-active", i === onboardingIndex))
     onboardingContentEl.replaceChildren()
         ;[
             renderAccessOnboarding,
@@ -330,13 +331,39 @@ async function openOnboarding({ resume = true } = {}) {
     else if (onboardingPrefs.siteAccessChoice === "all") onboardingPrefs.siteAccessChoice = null
     onboardingPermissionResumeResult = null
     onboardingIndex = Math.max(0, Math.min(ONBOARDING_TOTAL - 1, Number(session?.index) || 0))
-    onboardingOverlay.hidden = false
+    onboardingOverlay.classList.remove("is-prompt"), onboardingOverlay.hidden = false
     renderOnboarding(true)
     onboardingNextBtn.focus()
 }
+async function openOnboardingPage() {
+    try {
+        const tabs = await ext.tabs.query({ url: onboardingUrl })
+        const tab = tabs[0]
+        if (tab?.id !== undefined) return ext.tabs.update(tab.id, { active: true })
+    } catch { }
+    await ext.tabs.create({ url: onboardingUrl })
+}
+async function skipOnboarding() {
+    await ext.storage.local.set({
+        onboardingComplete: true,
+        onboardingCompletedAt: Date.now()
+    })
+    await ext.storage.local.remove(ONBOARDING_SESSION_KEY)
+    if (onboardingPageMode) {
+        window.close()
+        return
+    }
+    const tabs = await ext.tabs.query({ url: onboardingUrl })
+    await Promise.all(tabs.filter(tab => tab.id !== undefined).map(tab => ext.tabs.remove(tab.id).catch(() => { })))
+    onboardingOverlay.hidden = true
+}
+function showOnboardingPrompt() {
+    onboardingOverlay.classList.add("is-prompt"), onboardingPromptEl.hidden = false, onboardingOverlay.hidden = false
+    onboardingPromptSetupBtn.focus()
+}
 function closeOnboarding() {
     persistOnboardingSession(false).catch(() => { })
-    onboardingOverlay.hidden = true
+    onboardingOverlay.classList.remove("is-prompt"), onboardingOverlay.hidden = true
     if (onboardingPageMode) window.close()
 }
 async function applyOnboarding() {
@@ -379,9 +406,24 @@ async function applyOnboarding() {
 }
 async function maybeStartOnboarding() {
     const state = await ext.storage.local.get(["onboardingComplete", ONBOARDING_SESSION_KEY])
-    if (onboardingPageMode || !state.onboardingComplete || state[ONBOARDING_SESSION_KEY]?.active)
+    if (onboardingPageMode) {
+        onboardingPromptEl.hidden = true
         await openOnboarding()
+        return
+    }
+    if (!state.onboardingComplete || state[ONBOARDING_SESSION_KEY]?.active)
+        showOnboardingPrompt()
 }
+onboardingPromptSetupBtn.addEventListener("click", async () => {
+    onboardingPromptSetupBtn.disabled = true
+    try {
+        await openOnboardingPage()
+        onboardingOverlay.hidden = true
+    } finally {
+        onboardingPromptSetupBtn.disabled = false
+    }
+})
+onboardingPromptSkipBtn.addEventListener("click", () => skipOnboarding().catch(() => { }))
 onboardingBackBtn.addEventListener("click", () => {
     if (onboardingIndex <= 0) return
     onboardingIndex--
@@ -396,7 +438,7 @@ onboardingNextBtn.addEventListener("click", async () => {
     }
     await applyOnboarding()
 })
-onboardingCloseBtn.addEventListener("click", closeOnboarding)
+onboardingCloseBtn.addEventListener("click", () => skipOnboarding().catch(() => { }))
 runOnboardingBtn.addEventListener("click", () => {
     onboardingWarningOverlay.hidden = false
     onboardingKeepBtn.focus()
@@ -440,7 +482,6 @@ onboardingPermissionContinueBtn.addEventListener("click", () => {
 })
 onboardingResetBtn.addEventListener("click", async () => {
     onboardingResetBtn.disabled = true
-    onboardingResetBtn.textContent = "Erasing..."
     const result = await ext.runtime.sendMessage({ type: "RESET_ALL_DATA" })
     if (!result || !result.success) {
         onboardingResetBtn.disabled = false
@@ -449,9 +490,8 @@ onboardingResetBtn.addEventListener("click", async () => {
     }
     location.reload()
 })
-document.addEventListener("keydown", event => {
-    if (event.key !== "Escape") return
+document.addEventListener("keydown", event => event.key === "Escape" && (() => {
     if (!onboardingPermissionOverlay.hidden) onboardingPermissionCancelBtn.click()
     else if (!onboardingWarningOverlay.hidden) onboardingWarningCancelBtn.click()
     else if (!onboardingOverlay.hidden) closeOnboarding()
-})
+})())

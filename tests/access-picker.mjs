@@ -152,7 +152,8 @@ for (const removed of ["permissionPageMode", "openPermissionSetupPage", "COMPLET
 const popup = await read("extension/popup/popup.html")
 const popupBaseCss = await read("extension/popup/css/base.css")
 const popupSettingsCss = await read("extension/popup/css/settings.css")
-assert.ok(popup.includes('aria-label="Close onboarding">×</button>'))
+assert.ok(popup.includes('id="onboarding-prompt-setup"'))
+assert.ok(popup.includes('id="onboarding-prompt-skip"'))
 assert.ok(!popup.includes("Ã"), "popup controls must not contain mojibake")
 assert.ok(popupBaseCss.includes("width: 360px"), "browser-action popup must keep its intended width")
 assert.ok(!popupBaseCss.includes("width: min(360px, 100vw)"), "viewport-relative sizing must not collapse popup width")
@@ -182,6 +183,8 @@ assert.ok(onboarding.includes("SITE_ACCESS_PERMISSION_RESULT_KEY"),
 assert.ok(onboarding.includes("onboardingPermissionResumeResult"),
     "onboarding must explain a denied native prompt after the popup is reopened")
 const backgroundRuntime = await read("extension/background/10-runtime.js")
+assert.ok(backgroundRuntime.includes('details?.reason === "install"'), "fresh installs must open onboarding in a tab")
+assert.ok(backgroundRuntime.includes('popup/popup.html?onboarding=1'), "install onboarding must use the dedicated page mode")
 for (const removed of ["COMPLETE_PERMISSION_HANDOFF", "completePermissionHandoff", "action.openPopup", "ext.windows.remove"])
     assert.ok(!backgroundRuntime.includes(removed), `background must not retain dead permission handoff ${removed}`)
 const backgroundAccess = await read("extension/background/02-site-access.js")

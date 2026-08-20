@@ -102,11 +102,20 @@ ext.storage.onChanged.addListener((change, area) => {
     if (key.some(name => change[name])) syncBadge().catch(() => { })
 })
 
-ext.runtime.onInstalled.addListener(() => {
+const onboardingUrl = () => ext.runtime.getURL("popup/popup.html?onboarding=1")
+const openOnboardingTab = async () => {
+    try {
+        const tabs = await ext.tabs.query({ url: onboardingUrl() })
+        if (tabs[0]?.id !== undefined) return ext.tabs.update(tabs[0].id, { active: true })
+    } catch { }
+    return ext.tabs.create({ url: onboardingUrl() })
+}
+ext.runtime.onInstalled.addListener(details => {
     initialize().catch(() => { })
     checkUpdate(false).catch(() => { })
     getCfg().catch(() => { })
     syncBadge().catch(() => { })
+    if (details?.reason === "install") openOnboardingTab().catch(() => { })
 })
 ext.runtime.onStartup?.addListener(() => {
     initialize().catch(() => { })

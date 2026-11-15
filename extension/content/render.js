@@ -60,7 +60,8 @@
     let processRev = 0
 
     const pendingRoot = new Set()
-    const ownNode = new WeakSet()
+    let ownNode = new WeakSet()
+    const renderGroup = new WeakMap()
     shared.emoteInfo ||= new WeakMap()
     shared.hoverCfg ||= {
         style: "card",
@@ -344,6 +345,7 @@
         if (observer) observer.disconnect()
         observer = null
         observedRoots = new WeakSet()
+        ownNode = new WeakSet()
         pendingRoot.clear()
         scheduled = false
     }
@@ -494,7 +496,25 @@
         const frag = buildFragment(text)
         if (!frag) return
 
+        dropStaleTwin(textNode, text)
+        const group = { original: text, nodes: Array.from(frag.childNodes) }
+        for (const node of group.nodes) renderGroup.set(node, group)
         textNode.parentNode.replaceChild(frag, textNode)
+    }
+
+    function dropStaleTwin(textNode, text) {
+        const before = textNode.previousSibling
+        const after = textNode.nextSibling
+        let stale = null
+        const prevGroup = before && renderGroup.get(before)
+        const nextGroup = after && renderGroup.get(after)
+        if (prevGroup && prevGroup.original === text && prevGroup.nodes[prevGroup.nodes.length - 1] === before) stale = prevGroup
+        else if (nextGroup && nextGroup.original === text && nextGroup.nodes[0] === after) stale = nextGroup
+        if (!stale) return
+
+        for (const node of stale.nodes)
+            if (node.parentNode === textNode.parentNode)
+                node.remove()
     }
 
     function buildFragment(text) {

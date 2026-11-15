@@ -141,7 +141,7 @@
 
         globalThis.chrome = {
             runtime: {
-                getManifest: () => ({ version: "1.1.0" }),
+                getManifest: () => ({ version: "1.1.1" }),
                 getURL: path => new URL(`/extension/${path}`, location.href).href,
                 sendMessage: async message => {
                     if (message.type === "GET_APP_STATE") return pick([
@@ -164,7 +164,7 @@
                     }
                     if (message.type === "CHECK_FOR_UPDATE") return {
                         checked: true,
-                        updateInfo: { currentVersion: "1.1.0", latestVersion: "1.1.0", updateAvailable: false }
+                        updateInfo: { currentVersion: "1.1.1", latestVersion: "1.1.1", updateAvailable: false }
                     }
                     if (message.type === "RELOAD_EMOTES") return { success: true, emotes: storageData.emoteSet }
                     if (message.type === "SAVE_DRAFT") {

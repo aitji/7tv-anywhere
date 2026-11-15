@@ -48,8 +48,6 @@
     let triggerOffset = { x: 0, y: 0 }
     let triggerDrag = null
     let triggerLongPress = null
-    let moveHint = null
-    let moveHintShown = false
     let virtualSections = []
     let virtualFrame = 0
     let virtualScrollTimer = 0
@@ -235,12 +233,6 @@
         trigger.addEventListener("pointermove", moveTriggerDrag)
         trigger.addEventListener("pointerup", finishTriggerDrag)
         trigger.addEventListener("pointercancel", cancelTriggerDrag)
-        moveHint = document.createElement("span")
-        moveHint.className = "move-hint"
-        moveHint.hidden = true
-        moveHint.textContent = typeof matchMedia === "function" && matchMedia("(pointer: coarse)").matches
-            ? "Hold and drag to move"
-            : "Drag to move"
 
         panel = document.createElement("section")
         panel.className = "panel"
@@ -297,7 +289,7 @@
         navTooltip.className = "nav-tooltip"
         navTooltip.hidden = true
         panel.append(searchWrap, nav, content, status, navTooltip)
-        root.append(style, providerStyle, trigger, moveHint, panel)
+        root.append(style, providerStyle, trigger, panel)
         document.documentElement.appendChild(host)
         if (typeof ResizeObserver === "function") {
             virtualResizeObserver = new ResizeObserver(() => {
@@ -312,7 +304,7 @@
     }
 
     function styleText() {
-        const extra = `.trigger{touch-action:none;user-select:none}.trigger.dragging{cursor:grabbing;border-color:#8e93a6}.move-hint{position:fixed;z-index:10;padding:5px 7px;color:#c8cbd6;background:#272b37;border:1px solid #4a5060;border-radius:6px;box-shadow:0 4px 14px rgba(0,0,0,.42);font:500 10px/1.2 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;pointer-events:none}.move-hint[hidden]{display:none}.nav,.content{scrollbar-color:#393445 #151822;scrollbar-width:thin}.content{overflow-anchor:none;scroll-behavior:auto!important}.nav::-webkit-scrollbar,.content::-webkit-scrollbar{width:9px;height:9px}.nav::-webkit-scrollbar-track,.content::-webkit-scrollbar-track{background:#151822}.nav::-webkit-scrollbar-thumb,.content::-webkit-scrollbar-thumb{background:#393445;border:2px solid #151822;border-radius:999px}.nav::-webkit-scrollbar-thumb:hover,.content::-webkit-scrollbar-thumb:hover{background:#524665}.virtual-grid{position:relative;min-width:0}.virtual-row{position:absolute;right:0;left:0;display:grid;gap:5px;height:68px}.virtual-row .emote{box-sizing:border-box;height:68px;min-height:0}`
+        const extra = `.trigger{touch-action:none;user-select:none}.trigger.dragging{cursor:grabbing;border-color:#8e93a6}.nav,.content{scrollbar-color:#393445 #151822;scrollbar-width:thin}.content{overflow-anchor:none;scroll-behavior:auto!important}.nav::-webkit-scrollbar,.content::-webkit-scrollbar{width:9px;height:9px}.nav::-webkit-scrollbar-track,.content::-webkit-scrollbar-track{background:#151822}.nav::-webkit-scrollbar-thumb,.content::-webkit-scrollbar-thumb{background:#393445;border:2px solid #151822;border-radius:999px}.nav::-webkit-scrollbar-thumb:hover,.content::-webkit-scrollbar-thumb:hover{background:#524665}.virtual-grid{position:relative;min-width:0}.virtual-row{position:absolute;right:0;left:0;display:grid;gap:5px;height:68px}.virtual-row .emote{box-sizing:border-box;height:68px;min-height:0}`
         return extra + `:host{all:initial}.trigger{position:fixed;display:none;width:28px;height:28px;padding:0;border:1px solid #474b59;border-radius:7px;background:#181b24;color:#e8e9ef;box-shadow:0 4px 14px rgba(0,0,0,.38);cursor:pointer}.trigger:hover,.trigger:focus-visible,.trigger[aria-expanded="true"]{border-color:#9d72f8;background:#242033;outline:none}.glass{position:absolute;left:8px;top:7px;width:8px;height:8px;border:2px solid currentColor;border-radius:50%}.glass:after{content:"";position:absolute;width:6px;height:2px;right:-5px;bottom:-3px;background:currentColor;transform:rotate(45deg);border-radius:2px}.panel{position:fixed;box-sizing:border-box;width:min(430px,calc(100vw - 8px));height:min(470px,calc(100vh - 12px));overflow:hidden;color:#e6e8ef;background:#0c0e14;border:1px solid #343846;border-radius:12px;box-shadow:0 14px 38px rgba(0,0,0,.58);font:12px/1.35 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.panel[hidden],.panel.sidebar[hidden]{display:none}.search{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:6px;padding:9px;background:#151822;border-bottom:1px solid #2a2e3b}.search input{box-sizing:border-box;width:100%;min-width:0;padding:8px 10px;color:#e6e8ef;background:#1c202c;border:1px solid #343846;border-radius:7px;font:inherit;outline:none}.search input:focus{border-color:#8b5cf6;box-shadow:0 0 0 3px rgba(139,92,246,.16)}.panel-tool{display:flex;align-items:center;justify-content:center;gap:5px;min-width:32px;padding:0 8px;color:#a6aabb;background:#1c202c;border:1px solid #343846;border-radius:7px;font:600 10px/1 inherit;cursor:pointer}.panel-tool:hover,.panel-tool:focus-visible{color:#fff;border-color:#8b5cf6;outline:none}.panel-tool.close{padding:0;width:32px;font-size:20px;font-weight:400}.overlay-sort[aria-pressed="true"]{color:#ffc1df;background:#30202c;border-color:#b75f8e}.layers-icon{flex:none;width:15px;height:15px}.nav{display:flex;gap:4px;min-width:0;padding:6px;overflow:auto;background:#151822;border-bottom:1px solid #2a2e3b;scrollbar-width:thin}.nav button{box-sizing:border-box;display:flex;flex:none;align-items:center;gap:6px;max-width:140px;padding:5px 8px;overflow:hidden;color:#a6aabb;background:#1c202c;border:1px solid #2a2e3b;border-radius:7px;font:600 11px/1.2 inherit;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}.nav button:hover,.nav button:focus-visible{color:#fff;border-color:#8b5cf6;outline:none}.nav-icon{display:grid;flex:none;place-items:center;width:20px;height:20px;overflow:hidden;color:#d7d9e3;background:#292d3a;border-radius:50%;font:700 9px/1 inherit}.nav-icon img{display:block;width:100%;height:100%;object-fit:cover}.nav-label{overflow:hidden;text-overflow:ellipsis}.content{box-sizing:border-box;min-width:0;height:calc(100% - 100px);padding:8px;overflow:auto;scroll-behavior:smooth}.section{margin:0 0 10px;scroll-margin-top:4px}.section h3{position:sticky;top:-8px;z-index:1;margin:0 0 5px;padding:6px 2px 4px;color:#b8bbca;background:#0c0e14;font-size:11px;letter-spacing:.04em;text-transform:uppercase}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(62px,1fr));gap:5px}.emote{position:relative;display:grid;place-items:center;min-height:68px;padding:6px 4px 18px;overflow:hidden;color:#e6e8ef;background:#151822;border:1px solid transparent;border-radius:8px;font:10px/1.1 inherit;cursor:pointer}.emote.overlay{background:linear-gradient(150deg,rgba(252,141,199,.1),transparent 50%),#151822;border-color:rgba(252,141,199,.42)}.emote:hover,.emote:focus-visible{background-color:#211d30;border-color:#8b5cf6;outline:none}.emote img{position:relative;display:block;width:34px;height:34px;object-fit:contain;transition:opacity .12s ease}.emote.is-loading img{opacity:0}.emote.is-loading:before{content:"";position:absolute;top:7px;left:50%;width:34px;height:34px;border-radius:5px;background:linear-gradient(105deg,#202430 28%,#323746 42%,#202430 58%);background-size:220% 100%;transform:translateX(-50%);animation:picker-loading 1.15s ease-in-out infinite;animation-delay:var(--loading-delay,0ms)}@keyframes picker-loading{0%{background-position:100% 0}100%{background-position:-100% 0}}.emote-name{position:absolute;right:3px;bottom:4px;left:3px;overflow:hidden;text-align:center;text-overflow:ellipsis;white-space:nowrap}.overlay-badge{position:absolute;z-index:2;top:3px;left:4px;display:grid;place-items:center;width:17px;height:17px;color:#fc8dc7;background:rgba(21,24,34,.86);border-radius:4px}.overlay-badge .layers-icon{width:14px;height:14px}.favorite{position:absolute;z-index:2;top:2px;right:3px;padding:2px;color:#777d91;background:transparent;border:0;font-size:15px;line-height:1;cursor:pointer}.favorite.on{color:#f0b429}.more{width:100%;margin-top:7px;padding:7px;color:#c8cbd6;background:#1c202c;border:1px solid #343846;border-radius:7px;font:600 11px inherit;cursor:pointer}.status{padding:0 9px 7px;color:#8e93a6}.nav-tooltip{position:absolute;z-index:8;max-width:230px;padding:6px 8px;color:#f1f2f6;background:#272b37;border:1px solid #4a5060;border-radius:6px;box-shadow:0 5px 16px rgba(0,0,0,.45);font:500 11px/1.3 inherit;pointer-events:none}.panel.sidebar{display:grid;grid-template-columns:48px minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto}.panel.sidebar .search{grid-column:1/3;grid-row:1}.panel.sidebar .nav{grid-column:1;grid-row:2;align-content:flex-start;flex-direction:column;min-width:0;padding:5px;background:#11141c;border-right:1px solid #2a2e3b;border-bottom:0}.panel.sidebar .nav button{justify-content:center;width:37px;height:37px;padding:4px}.panel.sidebar .nav-label{display:none}.panel.sidebar .content{grid-column:2;grid-row:2;min-width:0;height:auto}.panel.sidebar .status{grid-column:1/3;grid-row:3}.panel.sidebar .empty{padding:7px 5px}.panel.sidebar .section:has(.empty){margin-bottom:6px}.empty{padding:14px 8px;text-align:center;color:#8e93a6}@media(max-width:390px){.overlay-sort-text{display:none}.grid{grid-template-columns:repeat(auto-fill,minmax(56px,1fr))}.panel{height:min(430px,calc(100vh - 8px))}}@media(prefers-reduced-motion:reduce){.emote.is-loading:before{animation:none}.emote img{transition:none}}`
     }
 
@@ -434,7 +426,6 @@
         if (!triggerDrag.dragging && distance < DRAG_THRESHOLD) return
         triggerDrag.dragging = true
         trigger.classList.add("dragging")
-        hideMoveHint()
         triggerOffset = {
             x: triggerDrag.offsetX + dx,
             y: triggerDrag.offsetY + dy
@@ -480,23 +471,6 @@
         await ext.storage.local.set({ pickerTriggerPositions: next })
     }
 
-    function showMoveHint() {
-        if (!moveHint || moveHintShown) return
-        moveHintShown = true
-        moveHint.hidden = false
-        requestAnimationFrame(() => {
-            const rect = trigger.getBoundingClientRect()
-            const width = moveHint.offsetWidth || 92
-            moveHint.style.left = `${Math.max(4, Math.min(innerWidth - width - 4, rect.left - width - 6))}px`
-            moveHint.style.top = `${Math.max(4, rect.top + 3)}px`
-        })
-        setTimeout(hideMoveHint, 2600)
-    }
-
-    function hideMoveHint() {
-        if (moveHint) moveHint.hidden = true
-    }
-
     function showTrigger() {
         if (!active || !targetInViewport()) {
             hideTrigger()
@@ -505,11 +479,11 @@
         ensureUi()
         trigger.style.display = "block"
         position()
-        showMoveHint()
     }
 
     function hideTrigger() {
-        if (trigger) trigger.style.display = "none"
+        if (trigger)
+            trigger.style.display = "none"
     }
 
     function position() {
@@ -1068,6 +1042,6 @@
         discardVirtualRows()
         virtualSections = []
         host?.remove()
-        host = root = trigger = moveHint = panel = nav = search = sortSelect = closeButton = content = status = navTooltip = null
+        host = root = trigger = panel = nav = search = sortSelect = closeButton = content = status = navTooltip = null
     }
 })()

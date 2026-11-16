@@ -60,7 +60,8 @@
     let processRev = 0
 
     const pendingRoot = new Set()
-    let ownNode = new WeakSet()
+    const ownNode = new WeakSet()
+    const anchorGroup = new WeakMap()
     const renderGroup = new WeakMap()
     shared.emoteInfo ||= new WeakMap()
     shared.hoverCfg ||= {
@@ -133,6 +134,7 @@
         if (!loaded || rev !== lifeRev || !isActive || document.hidden) return
         applyEmote(loaded)
 
+        sweepOrphans()
         if (needsRefresh) {
             restoreRendered()
             needsRefresh = false
@@ -345,7 +347,6 @@
         if (observer) observer.disconnect()
         observer = null
         observedRoots = new WeakSet()
-        ownNode = new WeakSet()
         pendingRoot.clear()
         scheduled = false
     }
@@ -356,19 +357,31 @@
 
     function handleMutations(mutations) {
         for (const mutation of mutations) {
-            if (mutation.type === "childList") mutation.addedNodes.forEach(node => {
-                if (node.nodeType !== Node.ELEMENT_NODE && node.nodeType !== Node.TEXT_NODE) return
-                if (ownNode.has(node)) {
-                    ownNode.delete(node)
-                    return
-                }
-                if (node.nodeType === Node.ELEMENT_NODE && renderCfg.observeShadow) observeOpenShadows(node)
-                schProing(node)
-            })
+            if (mutation.type === "childList") {
+                mutation.removedNodes.forEach(node => {
+                    const group = anchorGroup.get(node)
+                    if (group && !node.isConnected) dropGroup(group)
+                })
+                mutation.addedNodes.forEach(node => {
+                    if (node.nodeType !== Node.ELEMENT_NODE && node.nodeType !== Node.TEXT_NODE) return
+                    if (ownNode.has(node)) {
+                        ownNode.delete(node)
+                        return
+                    }
+                    if (node.nodeType === Node.ELEMENT_NODE && renderCfg.observeShadow) observeOpenShadows(node)
+                    schProing(node)
+                })
+            }
 
             else if (mutation.type === "characterData") {
-                if (ownNode.has(mutation.target)) ownNode.delete(mutation.target)
-                else schProing(mutation.target)
+                const target = mutation.target
+                const group = anchorGroup.get(target)
+                if (group) {
+                    if (target.nodeValue === group.expected) continue
+                    dropGroup(group)
+                    schProing(target)
+                } else if (ownNode.has(target)) ownNode.delete(target)
+                else schProing(target)
             }
         }
     }
@@ -489,6 +502,12 @@
         }
         if (!textNode.parentNode) return
 
+        const rendered = anchorGroup.get(textNode)
+        if (rendered) {
+            if (textNode.nodeValue === rendered.expected) return
+            dropGroup(rendered)
+        }
+
         const text = textNode.nodeValue
         if (!text || text.length < 2) return
         if (text.length < minNameLength) return
@@ -496,25 +515,44 @@
         const frag = buildFragment(text)
         if (!frag) return
 
-        dropStaleTwin(textNode, text)
-        const group = { original: text, nodes: Array.from(frag.childNodes) }
+        let lead = ""
+        if (frag.firstChild && frag.firstChild.nodeType === Node.TEXT_NODE) {
+            lead = frag.firstChild.nodeValue
+            frag.removeChild(frag.firstChild)
+        }
+        const group = { original: text, anchor: textNode, expected: lead, nodes: Array.from(frag.childNodes) }
+        anchorGroup.set(textNode, group)
         for (const node of group.nodes) renderGroup.set(node, group)
-        textNode.parentNode.replaceChild(frag, textNode)
+
+        textNode.nodeValue = lead
+        textNode.parentNode.insertBefore(frag, textNode.nextSibling)
     }
 
-    function dropStaleTwin(textNode, text) {
-        const before = textNode.previousSibling
-        const after = textNode.nextSibling
-        let stale = null
-        const prevGroup = before && renderGroup.get(before)
-        const nextGroup = after && renderGroup.get(after)
-        if (prevGroup && prevGroup.original === text && prevGroup.nodes[prevGroup.nodes.length - 1] === before) stale = prevGroup
-        else if (nextGroup && nextGroup.original === text && nextGroup.nodes[0] === after) stale = nextGroup
-        if (!stale) return
+    function dropGroup(group) {
+        anchorGroup.delete(group.anchor)
+        for (const node of group.nodes) {
+            renderGroup.delete(node)
+            node.remove()
+        }
+    }
 
-        for (const node of stale.nodes)
-            if (node.parentNode === textNode.parentNode)
-                node.remove()
+    function restoreGroup(group) {
+        dropGroup(group)
+        if (group.anchor.isConnected && group.anchor.nodeValue === group.expected) group.anchor.nodeValue = group.original
+    }
+
+    function sweepOrphans() {
+        for (const root of Array.from(knownRoots)) {
+            if (root !== document && !root.isConnected) {
+                knownRoots.delete(root)
+                continue
+            }
+            if (!root.querySelectorAll) continue
+            for (const stack of root.querySelectorAll("[data-emoteanywhere-rendered='true']")) {
+                const group = renderGroup.get(stack)
+                if (group && !group.anchor.isConnected) dropGroup(group)
+            }
+        }
     }
 
     function buildFragment(text) {
@@ -706,6 +744,12 @@
         if (!stack.isConnected) return
         const fallback = document.createTextNode(originalText)
         ownNode.add(fallback)
+        const group = renderGroup.get(stack)
+        if (group) {
+            group.nodes[group.nodes.indexOf(stack)] = fallback
+            renderGroup.delete(stack)
+            renderGroup.set(fallback, group)
+        }
         stack.replaceWith(fallback)
     }
 
@@ -720,6 +764,11 @@
                 ? root.querySelectorAll("[data-emoteanywhere-rendered='true']")
                 : []
             for (const stack of stacks) {
+                const group = renderGroup.get(stack)
+                if (group) {
+                    restoreGroup(group)
+                    continue
+                }
                 const text = stack.dataset.emoteanywhereText || stack.alt || ""
                 stack.replaceWith(document.createTextNode(text))
             }
